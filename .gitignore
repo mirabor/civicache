@@ -1,41 +1,41 @@
-# Prerequisites
+# Build artifacts
+build/
+cache_sim
+*.o
 *.d
-
-# Compiled Object files
 *.slo
 *.lo
-*.o
 *.obj
-
-# Precompiled Headers
 *.gch
 *.pch
-
-# Linker files
 *.ilk
-
-# Debugger Files
 *.pdb
-
-# Compiled Dynamic libraries
 *.so
 *.dylib
 *.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
 *.lai
 *.la
 *.a
 *.lib
-
-# Executables
 *.exe
 *.out
 *.app
-
-# debug information files
 *.dwo
+*.mod
+*.smod
+
+# Trace data (large files, collected per-user)
+traces/
+
+# Simulation outputs (regenerable)
+results/
+
+# OS files
+.DS_Store
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
