@@ -1,7 +1,7 @@
 # Requirements — civicache Milestone 2
 
 **Project:** civicache — CS 2640 Final Project (Spring 2026)
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-18
 **Core value:** A defensible, well-analyzed comparison of cache eviction policies on real legislative + judicial API workloads, delivered as a submission-ready paper + code + AI-use report + live demo.
 
 ---
@@ -106,4 +106,50 @@
 
 ## Traceability — Phase Mapping
 
-(Filled in by roadmapper)
+All 29 v1 requirements below are mapped to exactly one Milestone 2 phase. See `.planning/ROADMAP.md` for phase details.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| REFACTOR-01 | Phase 1 — Enabling Refactors & CourtListener Pilot | Pending |
+| REFACTOR-02 | Phase 1 — Enabling Refactors & CourtListener Pilot | Pending |
+| REFACTOR-03 | Phase 1 — Enabling Refactors & CourtListener Pilot | Pending |
+| REFACTOR-04 | Phase 1 — Enabling Refactors & CourtListener Pilot | Pending |
+| TRACE-03    | Phase 1 — Enabling Refactors & CourtListener Pilot | Pending |
+| TRACE-04    | Phase 1 — Enabling Refactors & CourtListener Pilot | Pending |
+| WTLFU-01    | Phase 2 — W-TinyLFU Core | Pending |
+| WTLFU-02    | Phase 2 — W-TinyLFU Core | Pending |
+| WTLFU-03    | Phase 2 — W-TinyLFU Core | Pending |
+| WTLFU-04    | Phase 2 — W-TinyLFU Core | Pending |
+| WTLFU-05    | Phase 2 — W-TinyLFU Core | Pending |
+| TRACE-05    | Phase 3 — CourtListener Trace Collection & Replay Sweep | Pending |
+| TRACE-06    | Phase 3 — CourtListener Trace Collection & Replay Sweep | Pending |
+| TRACE-07    | Phase 3 — CourtListener Trace Collection & Replay Sweep | Pending |
+| SHARDS-01   | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
+| SHARDS-02   | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
+| SHARDS-03   | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
+| DOOR-01     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
+| DOOR-02     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
+| DOOR-03     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
+| ABLA-01     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
+| ABLA-02     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
+| ANAL-01     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
+| ANAL-02     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
+| ANAL-03     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
+| ANAL-04     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
+| DOC-02      | Phase 6 — Writeup & Demo | Pending |
+| DOC-03      | Phase 6 — Writeup & Demo | Pending |
+| DOC-04      | Phase 6 — Writeup & Demo | Pending |
+
+**Coverage:** 29/29 v1 requirements mapped (100%). No orphans, no duplicates.
+
+**Phase totals:**
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| 1 — Enabling Refactors & CourtListener Pilot | REFACTOR-01..04, TRACE-03, TRACE-04 | 6 |
+| 2 — W-TinyLFU Core | WTLFU-01..05 | 5 |
+| 3 — CourtListener Trace Collection & Replay Sweep | TRACE-05, TRACE-06, TRACE-07 | 3 |
+| 4 — SHARDS Large-Scale Validation & Ablations | SHARDS-01..03, DOOR-01..03, ABLA-01..02 | 8 |
+| 5 — Cross-Workload Analysis Infrastructure | ANAL-01..04 | 4 |
+| 6 — Writeup & Demo | DOC-02..04 | 3 |
+| **Total** | | **29** |
