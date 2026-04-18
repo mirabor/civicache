@@ -24,3 +24,11 @@ std::vector<TraceEntry> load_trace(const std::string& filename);
 // Generate a synthetic Zipf-distributed trace with log-normal object sizes
 std::vector<TraceEntry> generate_zipf_trace(uint64_t num_requests, uint64_t num_objects,
                                              double alpha, uint64_t seed = 42);
+
+// Replay real keys/sizes from a trace with Zipf-distributed popularity.
+// Extracts unique (key, size) pairs from the input trace, ranks them
+// arbitrarily, and generates num_requests accesses where the probability
+// of accessing rank-k object follows Zipf(alpha).
+std::vector<TraceEntry> replay_zipf(const std::vector<TraceEntry>& real_trace,
+                                     uint64_t num_requests, double alpha,
+                                     uint64_t seed = 42);

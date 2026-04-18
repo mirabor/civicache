@@ -30,6 +30,20 @@ traces/
 # Simulation outputs (regenerable)
 results/
 
+# Python venv
+.venv/
+.venv13/
+
+# LaTeX build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+progress.log
+
+# Secrets
+.env
+
 # OS files
 .DS_Store
 
@@ -39,3 +53,9 @@ results/
 *~
 .vscode/
 .idea/
+v7.tex
+
+# Local working docs
+/PROCESS.md
+/progress.tex
+/progress.pdf

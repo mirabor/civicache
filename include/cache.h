@@ -4,9 +4,9 @@
 #include <unordered_map>
 #include <list>
 #include <vector>
-#include <queue>
+#include <algorithm>
 #include <unordered_set>
-#include <cassert>
+#include <deque>
 
 struct TraceEntry {
     uint64_t timestamp;
@@ -59,6 +59,9 @@ public:
     bool access(const std::string& key, uint64_t size) override {
         auto it = map_.find(key);
         if (it != map_.end()) {
+            current_size_ -= it->second->second;
+            it->second->second = size;
+            current_size_ += size;
             order_.splice(order_.end(), order_, it->second);
             record(true, size);
             return true;
@@ -93,6 +96,9 @@ public:
     bool access(const std::string& key, uint64_t size) override {
         auto it = map_.find(key);
         if (it != map_.end()) {
+            current_size_ -= it->second->second;
+            it->second->second = size;
+            current_size_ += size;
             record(true, size);
             return true;
         }
@@ -136,6 +142,9 @@ public:
     bool access(const std::string& key, uint64_t size) override {
         auto it = map_.find(key);
         if (it != map_.end()) {
+            current_size_ -= buffer_[it->second].size;
+            buffer_[it->second].size = size;
+            current_size_ += size;
             buffer_[it->second].referenced = true;
             record(true, size);
             return true;
@@ -190,16 +199,24 @@ public:
 
 // ==================== S3-FIFO ====================
 // Small FIFO (10%) -> Main FIFO (90%), with ghost filter
+// Per Yang et al. (SOSP '23): items enter small on miss (unless in ghost,
+// then go directly to main). On eviction from small, items with freq > 0
+// promote to main; freq == 0 items go to ghost.
 class S3FIFOCache : public CachePolicy {
     uint64_t total_capacity_;
     uint64_t small_capacity_;
     uint64_t main_capacity_;
-    
-    // Small FIFO queue
-    std::list<std::pair<std::string, uint64_t>> small_queue_;
-    std::unordered_map<std::string, std::list<std::pair<std::string, uint64_t>>::iterator> small_map_;
+
+    // Small FIFO queue with frequency tracking
+    struct SmallEntry {
+        std::string key;
+        uint64_t size;
+        uint8_t freq; // incremented on hit while in small
+    };
+    std::list<SmallEntry> small_queue_;
+    std::unordered_map<std::string, std::list<SmallEntry>::iterator> small_map_;
     uint64_t small_size_ = 0;
-    
+
     // Main FIFO queue with frequency bits
     struct MainEntry {
         std::string key;
@@ -209,54 +226,71 @@ class S3FIFOCache : public CachePolicy {
     std::list<MainEntry> main_queue_;
     std::unordered_map<std::string, std::list<MainEntry>::iterator> main_map_;
     uint64_t main_size_ = 0;
-    
-    // Ghost filter (tracks recently evicted from small)
-    std::unordered_set<std::string> ghost_;
+
+    // Ghost filter: FIFO-ordered for correct eviction
+    std::deque<std::string> ghost_queue_;
+    std::unordered_set<std::string> ghost_set_;
 
 public:
     S3FIFOCache(uint64_t capacity) : total_capacity_(capacity) {
-        small_capacity_ = capacity / 10;
+        small_capacity_ = std::max((uint64_t)1, capacity / 10);
         main_capacity_ = capacity - small_capacity_;
     }
-    
+
     bool access(const std::string& key, uint64_t size) override {
         // Check main
         auto mit = main_map_.find(key);
         if (mit != main_map_.end()) {
+            main_size_ -= mit->second->size;
+            mit->second->size = size;
+            main_size_ += size;
             if (mit->second->freq < 3) mit->second->freq++;
             record(true, size);
             return true;
         }
-        // Check small
+        // Check small — increment freq on hit
         auto sit = small_map_.find(key);
         if (sit != small_map_.end()) {
+            small_size_ -= sit->second->size;
+            sit->second->size = size;
+            small_size_ += size;
+            if (sit->second->freq < 3) sit->second->freq++;
             record(true, size);
             return true;
         }
-        // Miss: insert into small
-        while (small_size_ + size > small_capacity_ && !small_queue_.empty()) {
-            evict_small();
+        // Miss: if in ghost, insert into main; otherwise into small
+        if (ghost_set_.count(key)) {
+            ghost_set_.erase(key);
+            // Remove from ghost queue (lazy: just leave stale entries, cleaned on trim)
+            while (main_size_ + size > main_capacity_ && !main_queue_.empty()) {
+                evict_main();
+            }
+            main_queue_.push_back({key, size, 0});
+            main_map_[key] = std::prev(main_queue_.end());
+            main_size_ += size;
+        } else {
+            while (small_size_ + size > small_capacity_ && !small_queue_.empty()) {
+                evict_small();
+            }
+            small_queue_.push_back({key, size, 0});
+            small_map_[key] = std::prev(small_queue_.end());
+            small_size_ += size;
         }
-        small_queue_.push_back({key, size});
-        small_map_[key] = std::prev(small_queue_.end());
-        small_size_ += size;
-        
         record(false, size);
         return false;
     }
-    
+
     void evict_small() {
         auto& front = small_queue_.front();
-        std::string key = front.first;
-        uint64_t sz = front.second;
+        std::string key = front.key;
+        uint64_t sz = front.size;
+        uint8_t freq = front.freq;
         small_map_.erase(key);
         small_size_ -= sz;
         small_queue_.pop_front();
-        
-        // If in ghost (seen before), promote to main
-        if (ghost_.count(key)) {
-            ghost_.erase(key);
-            // Make room in main
+
+        if (freq > 0) {
+            // Re-accessed while in small: promote to main
             while (main_size_ + sz > main_capacity_ && !main_queue_.empty()) {
                 evict_main();
             }
@@ -264,21 +298,23 @@ public:
             main_map_[key] = std::prev(main_queue_.end());
             main_size_ += sz;
         } else {
-            // Add to ghost
-            ghost_.insert(key);
-            if (ghost_.size() > total_capacity_ / 100 + 1000) {
-                // Trim ghost
-                ghost_.erase(ghost_.begin());
+            // Not re-accessed: add to ghost
+            ghost_set_.insert(key);
+            ghost_queue_.push_back(key);
+            // Trim ghost FIFO from the front (oldest first)
+            size_t ghost_max = total_capacity_ / 100 + 1000;
+            while (ghost_queue_.size() > ghost_max) {
+                ghost_set_.erase(ghost_queue_.front());
+                ghost_queue_.pop_front();
             }
         }
     }
-    
+
     void evict_main() {
         while (!main_queue_.empty()) {
             auto& front = main_queue_.front();
             if (front.freq > 0) {
                 front.freq--;
-                // Reinsert at tail
                 main_queue_.splice(main_queue_.end(), main_queue_, main_queue_.begin());
             } else {
                 main_size_ -= front.size;
@@ -288,12 +324,12 @@ public:
             }
         }
     }
-    
+
     std::string name() const override { return "S3-FIFO"; }
     void reset() override {
         small_queue_.clear(); small_map_.clear(); small_size_ = 0;
         main_queue_.clear(); main_map_.clear(); main_size_ = 0;
-        ghost_.clear(); stats = {};
+        ghost_queue_.clear(); ghost_set_.clear(); stats = {};
     }
 };
 
@@ -320,6 +356,9 @@ public:
     bool access(const std::string& key, uint64_t size) override {
         auto it = map_.find(key);
         if (it != map_.end()) {
+            current_size_ -= it->second->size;
+            it->second->size = size;
+            current_size_ += size;
             it->second->visited = true;
             record(true, size);
             return true;

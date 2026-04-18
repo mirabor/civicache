@@ -54,6 +54,7 @@ make run-sweep
   --alpha-sweep          Run alpha sensitivity sweep (0.6 to 1.2)
   --shards               Run SHARDS MRC construction
   --shards-exact         Also compute exact stack distances (slow)
+  --replay-zipf          Resample a real trace with Zipf popularity (use with --trace)
 ```
 
 ### Collect a real trace from Congress.gov
@@ -65,18 +66,20 @@ export CONGRESS_API_KEY=your_key_here
 python3 scripts/collect_trace.py --requests 5000 --output traces/congress_trace.csv
 ```
 
-Then run the simulator on it:
+Then run the simulator on it. Use `--replay-zipf` to overlay Zipf popularity on real keys/sizes:
 
 ```bash
-./cache_sim --trace traces/congress_trace.csv --alpha-sweep --shards
+./cache_sim --trace traces/congress_trace.csv --replay-zipf --alpha-sweep --shards
 ```
 
 ### Generate plots
 
-Requires Python with `matplotlib`, `numpy`, and `pandas`:
+Requires Python 3 with dependencies listed in `requirements.txt`:
 
 ```bash
-pip install matplotlib numpy pandas
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 make plots
 # Figures saved to results/figures/
 ```

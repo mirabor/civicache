@@ -28,6 +28,7 @@ static void print_usage(const char* prog) {
               << "  --alpha-sweep          Run alpha sensitivity sweep\n"
               << "  --shards               Run SHARDS MRC construction\n"
               << "  --shards-exact         Also compute exact stack distances (slow, small traces only)\n"
+              << "  --replay-zipf          Resample a real trace with Zipf popularity (use with --trace)\n"
               << "  -h, --help             Show this help\n";
 }
 
@@ -85,6 +86,7 @@ int main(int argc, char* argv[]) {
     bool alpha_sweep = false;
     bool run_shards = false;
     bool shards_exact = false;
+    bool replay_zipf_mode = false;
 
     // Parse CLI arguments
     for (int i = 1; i < argc; i++) {
@@ -110,6 +112,8 @@ int main(int argc, char* argv[]) {
         } else if (std::strcmp(argv[i], "--shards-exact") == 0) {
             shards_exact = true;
             run_shards = true;
+        } else if (std::strcmp(argv[i], "--replay-zipf") == 0) {
+            replay_zipf_mode = true;
         } else if (std::strcmp(argv[i], "-h") == 0 || std::strcmp(argv[i], "--help") == 0) {
             print_usage(argv[0]);
             return 0;
@@ -124,7 +128,16 @@ int main(int argc, char* argv[]) {
 
     // ---------- Load or generate trace ----------
     std::vector<TraceEntry> trace;
-    if (!trace_file.empty()) {
+    std::vector<TraceEntry> raw_trace; // kept for replay-zipf alpha sweep
+    if (!trace_file.empty() && replay_zipf_mode) {
+        std::cout << "Loading trace: " << trace_file << "\n";
+        raw_trace = load_trace(trace_file);
+        if (raw_trace.empty()) {
+            std::cerr << "Failed to load trace.\n";
+            return 1;
+        }
+        trace = replay_zipf(raw_trace, num_requests, alpha);
+    } else if (!trace_file.empty()) {
         std::cout << "Loading trace: " << trace_file << "\n";
         trace = load_trace(trace_file);
         if (trace.empty()) {
@@ -204,7 +217,9 @@ int main(int argc, char* argv[]) {
         std::cout << "\n" << std::string(8 + 10 * policy_names.size(), '-') << "\n";
 
         for (double a : alphas) {
-            auto sweep_trace = generate_zipf_trace(num_requests, num_objects, a);
+            auto sweep_trace = (!raw_trace.empty())
+                ? replay_zipf(raw_trace, num_requests, a)
+                : generate_zipf_trace(num_requests, num_objects, a);
             uint64_t wb = working_set_bytes(sweep_trace);
             uint64_t cache_bytes = wb / 100;
 
@@ -244,11 +259,12 @@ int main(int argc, char* argv[]) {
     if (run_shards) {
         std::cout << "=== SHARDS MRC Construction ===\n";
         std::vector<double> rates = {0.001, 0.01, 0.1};
-        uint64_t max_cache = total_bytes / 10; // MRC up to 10% of working set
+        // MRC x-axis is in object count (stack distances are object-based)
+        uint64_t max_cache = ws.unique_objects;
 
         std::string csv_path = output_dir + "/shards_mrc.csv";
         std::ofstream csv(csv_path);
-        csv << "sampling_rate,cache_size,miss_ratio\n";
+        csv << "sampling_rate,cache_size_objects,miss_ratio\n";
 
         for (double rate : rates) {
             SHARDS shards(rate);
@@ -262,7 +278,7 @@ int main(int argc, char* argv[]) {
                       << " accesses (" << std::setprecision(2) << elapsed << "s)\n";
 
             for (auto& pt : mrc) {
-                csv << rate << "," << pt.cache_size << "," << pt.miss_ratio << "\n";
+                csv << rate << "," << pt.cache_size << "," << std::setprecision(6) << pt.miss_ratio << "\n";
             }
         }
         csv.close();
@@ -279,12 +295,44 @@ int main(int argc, char* argv[]) {
 
                 std::string exact_path = output_dir + "/exact_mrc.csv";
                 std::ofstream exact_csv(exact_path);
-                exact_csv << "cache_size,miss_ratio\n";
+                exact_csv << "cache_size_objects,miss_ratio\n";
                 for (auto& pt : exact_mrc) {
                     exact_csv << pt.cache_size << "," << pt.miss_ratio << "\n";
                 }
                 exact_csv.close();
                 std::cout << "  Exact MRC written to " << exact_path << "\n";
+
+                // Compute error metrics: MAE and max absolute error per sampling rate
+                std::string err_path = output_dir + "/shards_error.csv";
+                std::ofstream err_csv(err_path);
+                err_csv << "sampling_rate,mae,max_abs_error,num_points\n";
+
+                std::cout << "\n  SHARDS Error vs. Exact MRC:\n";
+                std::cout << std::setw(10) << "Rate" << std::setw(10) << "MAE"
+                          << std::setw(12) << "Max Error" << "\n";
+
+                for (double rate : rates) {
+                    SHARDS s(rate);
+                    s.process(trace);
+                    auto approx = s.build_mrc(max_cache, 100);
+
+                    // Match points: both vectors have same num_points and step size
+                    size_t n = std::min(approx.size(), exact_mrc.size());
+                    double sum_err = 0, max_err = 0;
+                    for (size_t j = 0; j < n; j++) {
+                        double err = std::abs(approx[j].miss_ratio - exact_mrc[j].miss_ratio);
+                        sum_err += err;
+                        max_err = std::max(max_err, err);
+                    }
+                    double mae = n > 0 ? sum_err / n : 0;
+
+                    std::cout << std::setw(8) << std::setprecision(1) << rate * 100 << "%"
+                              << std::setw(10) << std::setprecision(4) << mae
+                              << std::setw(12) << std::setprecision(4) << max_err << "\n";
+                    err_csv << rate << "," << mae << "," << max_err << "," << n << "\n";
+                }
+                err_csv.close();
+                std::cout << "  Error metrics written to " << err_path << "\n";
             }
         }
         std::cout << "\n";

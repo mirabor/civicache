@@ -100,22 +100,30 @@ def generate_request():
         return generate_vote_request()
 
 
-def collect_trace(api_key, num_requests, max_duration, output_path):
-    """Collect API trace, respecting rate limits."""
+def collect_trace(api_key, num_requests, max_duration, output_path, append=False):
+    """Collect API trace, respecting rate limits with backoff on errors."""
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
-    with open(output_path, "w", newline="") as f:
+    mode = "a" if append else "w"
+    write_header = not append or not os.path.exists(output_path) or os.path.getsize(output_path) == 0
+
+    with open(output_path, mode, newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["timestamp", "key", "size"])
+        if write_header:
+            writer.writerow(["timestamp", "key", "size"])
 
         start_time = time.time()
         session = requests.Session()
         session.params = {"api_key": api_key, "format": "json"}
 
+        base_delay = 1.2  # slightly above their 1 req/s limit
+        consecutive_failures = 0
+        collected = 0
+
         for i in range(num_requests):
             elapsed = time.time() - start_time
             if max_duration and elapsed >= max_duration:
-                print(f"Reached time limit ({max_duration}s) after {i} requests")
+                print(f"Reached time limit ({max_duration}s) after {collected} requests")
                 break
 
             endpoint = generate_request()
@@ -123,26 +131,46 @@ def collect_trace(api_key, num_requests, max_duration, output_path):
             timestamp = int(time.time() * 1000)
 
             try:
-                resp = session.get(url, timeout=10)
+                resp = session.get(url, timeout=30)
+
+                # Back off on 429 (rate limit) or 5xx
+                if resp.status_code == 429 or resp.status_code >= 500:
+                    consecutive_failures += 1
+                    backoff = min(base_delay * (2 ** consecutive_failures), 300)
+                    print(f"  HTTP {resp.status_code}, backing off {backoff:.0f}s "
+                          f"({consecutive_failures} consecutive failures)")
+                    time.sleep(backoff)
+                    continue
+
+                # Skip non-200 responses (404s, 403s, etc.)
+                if resp.status_code != 200:
+                    continue
+
                 size = len(resp.content)
-                # Use endpoint path as the cache key
                 key = endpoint.lstrip("/")
                 writer.writerow([timestamp, key, size])
+                f.flush()  # don't lose data on crash
+                collected += 1
+                consecutive_failures = 0
 
-                if (i + 1) % 100 == 0:
-                    print(f"  [{i+1}/{num_requests}] {elapsed:.0f}s elapsed, "
+                if collected % 100 == 0:
+                    print(f"  [{collected}/{num_requests}] {elapsed:.0f}s elapsed, "
                           f"last: {key} ({size} bytes, HTTP {resp.status_code})")
 
             except requests.RequestException as e:
-                print(f"  Request failed: {e}", file=sys.stderr)
-                # Still log as a miss with 0 size
-                writer.writerow([timestamp, endpoint.lstrip("/"), 0])
+                consecutive_failures += 1
+                backoff = min(base_delay * (2 ** consecutive_failures), 300)
+                print(f"  Request failed ({consecutive_failures}x): {e}")
+                print(f"  Backing off {backoff:.0f}s")
+                time.sleep(backoff)
+                continue
 
-            # Rate limit: 1 request per second
-            time.sleep(1.0)
+            # Jitter: randomize delay between 1.2-2.0s to avoid fixed-interval patterns
+            jitter = base_delay + random.uniform(0, 0.8)
+            time.sleep(jitter)
 
     total_time = time.time() - start_time
-    print(f"\nDone. Collected {min(i + 1, num_requests)} requests in {total_time:.0f}s")
+    print(f"\nDone. Collected {collected} requests in {total_time:.0f}s")
     print(f"Trace saved to {output_path}")
 
 
@@ -156,14 +184,17 @@ def main():
                         help="Output CSV path")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random seed for reproducibility")
+    parser.add_argument("--append", action="store_true",
+                        help="Append to existing trace file instead of overwriting")
     args = parser.parse_args()
 
     random.seed(args.seed)
     api_key = get_api_key()
 
-    print(f"Collecting {args.requests} requests (max {args.duration}s)")
+    mode = "appending to" if args.append else "writing to"
+    print(f"Collecting {args.requests} requests (max {args.duration}s), {mode} {args.output}")
     print(f"API key: {api_key[:8]}...")
-    collect_trace(api_key, args.requests, args.duration, args.output)
+    collect_trace(api_key, args.requests, args.duration, args.output, append=args.append)
 
 
 if __name__ == "__main__":

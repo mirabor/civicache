@@ -136,7 +136,9 @@ std::map<uint64_t, uint64_t> SHARDS::stack_distance_histogram() const {
 }
 
 std::vector<MRCPoint> SHARDS::build_mrc(uint64_t max_cache_size, uint64_t num_points) const {
-    // Total accesses is total_sampled scaled by 1/rate
-    uint64_t estimated_total = (uint64_t)(total_sampled_ / rate_);
-    return mrc_from_stack_distances(sd_hist_, estimated_total, max_cache_size, num_points);
+    // Distances in sd_hist_ are already scaled by 1/rate (estimating true
+    // stack distances). The counts are raw sampled counts. The miss ratio
+    // is the fraction of sampled accesses that miss, which approximates
+    // the true miss ratio — no need to scale the total.
+    return mrc_from_stack_distances(sd_hist_, total_sampled_, max_cache_size, num_points);
 }

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <unordered_map>
 
 // ==================== Zipf Generator ====================
 
@@ -20,7 +21,9 @@ ZipfGenerator::ZipfGenerator(uint64_t n, double alpha, uint64_t seed) : rng_(see
 
 uint64_t ZipfGenerator::next() {
     double r = dist_(rng_);
-    return std::lower_bound(cdf_.begin(), cdf_.end(), r) - cdf_.begin();
+    auto it = std::lower_bound(cdf_.begin(), cdf_.end(), r);
+    if (it == cdf_.end()) return cdf_.size() - 1;
+    return it - cdf_.begin();
 }
 
 // ==================== Trace I/O ====================
@@ -53,13 +56,51 @@ std::vector<TraceEntry> generate_zipf_trace(uint64_t num_requests, uint64_t num_
     // Log-normal size distribution (median ~4KB)
     std::lognormal_distribution<double> size_dist(8.3, 1.5);
 
+    // Pre-generate one size per object so repeated accesses see the same size
+    std::vector<uint64_t> obj_sizes(num_objects);
+    for (uint64_t i = 0; i < num_objects; i++) {
+        uint64_t sz = std::max((uint64_t)64, (uint64_t)size_dist(size_rng));
+        obj_sizes[i] = std::min(sz, (uint64_t)10'000'000);
+    }
+
     std::vector<TraceEntry> trace;
     trace.reserve(num_requests);
     for (uint64_t i = 0; i < num_requests; i++) {
         uint64_t obj = zipf.next();
-        uint64_t sz = std::max((uint64_t)64, (uint64_t)size_dist(size_rng));
-        sz = std::min(sz, (uint64_t)10'000'000); // cap 10MB
-        trace.push_back({i, "obj_" + std::to_string(obj), sz});
+        trace.push_back({i, "obj_" + std::to_string(obj), obj_sizes[obj]});
+    }
+    return trace;
+}
+
+// ==================== Replay with Zipf Popularity ====================
+
+std::vector<TraceEntry> replay_zipf(const std::vector<TraceEntry>& real_trace,
+                                     uint64_t num_requests, double alpha,
+                                     uint64_t seed) {
+    // Extract unique objects, keeping the first-seen size for each key
+    std::unordered_map<std::string, uint64_t> seen;
+    std::vector<std::pair<std::string, uint64_t>> objects; // (key, size)
+    for (auto& e : real_trace) {
+        if (!seen.count(e.key)) {
+            seen[e.key] = e.size;
+            objects.push_back({e.key, e.size});
+        }
+    }
+
+    std::cout << "Replay-Zipf: " << objects.size() << " unique objects from real trace, "
+              << "generating " << num_requests << " accesses with alpha=" << alpha << "\n";
+
+    // Shuffle object order so Zipf ranking isn't tied to collection order
+    std::mt19937_64 shuffle_rng(seed);
+    std::shuffle(objects.begin(), objects.end(), shuffle_rng);
+
+    ZipfGenerator zipf(objects.size(), alpha, seed + 1);
+
+    std::vector<TraceEntry> trace;
+    trace.reserve(num_requests);
+    for (uint64_t i = 0; i < num_requests; i++) {
+        uint64_t rank = zipf.next();
+        trace.push_back({i, objects[rank].first, objects[rank].second});
     }
     return trace;
 }

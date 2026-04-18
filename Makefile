@@ -1,5 +1,5 @@
 CXX      := g++
-CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -Iinclude
+CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -Iinclude -MMD -MP
 LDFLAGS  :=
 
 SRCDIR := src
@@ -10,7 +10,7 @@ SOURCES := $(wildcard $(SRCDIR)/*.cpp)
 OBJECTS := $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SOURCES))
 TARGET  := cache_sim
 
-.PHONY: all clean run run-sweep run-shards plots
+.PHONY: all clean run run-sweep plots
 
 all: $(TARGET)
 
@@ -22,6 +22,8 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(OBJDIR)
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
+
+-include $(OBJECTS:.o=.d)
 
 clean:
 	rm -rf $(OBJDIR) $(TARGET)
