@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 ## Current Position
 
 Phase: 1 of 6 (Enabling Refactors & CourtListener Pilot)
-Plan: Not yet planned
+Plan: Not yet planned (context captured)
 Status: Ready to plan
-Last activity: 2026-04-18 — Milestone 2 roadmap created, 29 v1 requirements mapped across 6 phases
+Last activity: 2026-04-16 — Phase 1 context captured (throughput granularity, results migration, pilot policy, replay_zipf API shape, FNV-1a seed design)
 
 Progress: [░░░░░░░░░░] 0%
 
