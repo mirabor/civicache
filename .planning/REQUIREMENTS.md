@@ -39,7 +39,7 @@
 
 ### W-TinyLFU policy (WTLFU-xx)
 
-- [ ] **WTLFU-01**: Implement `include/count_min_sketch.h` — 4-bit counters, depth=4, width=nextpow2(capacity-objects), conservative update, periodic halving every 10×W accesses
+- [x] **WTLFU-01**: Implement `include/count_min_sketch.h` — 4-bit counters, depth=4, width=nextpow2(capacity-objects), conservative update, periodic halving every 10×W accesses
 - [ ] **WTLFU-02**: Implement `include/wtinylfu.h` — 1% window LRU + 99% main SLRU (80% protected / 20% probationary) + TinyLFU admission via CMS
 - [ ] **WTLFU-03**: Integrate W-TinyLFU into `CachePolicy` hierarchy and `make_policy()` dispatch
 - [ ] **WTLFU-04**: Unit test: 20-access hot object survives 1000-access sequential scan of unique keys
@@ -116,7 +116,7 @@ All 29 v1 requirements below are mapped to exactly one Milestone 2 phase. See `.
 | REFACTOR-04 | Phase 1 — Enabling Refactors & CourtListener Pilot | Verified |
 | TRACE-03    | Phase 1 — Enabling Refactors & CourtListener Pilot | Verified |
 | TRACE-04    | Phase 1 — Enabling Refactors & CourtListener Pilot | Verified |
-| WTLFU-01    | Phase 2 — W-TinyLFU Core | Pending |
+| WTLFU-01    | Phase 2 — W-TinyLFU Core | Complete |
 | WTLFU-02    | Phase 2 — W-TinyLFU Core | Pending |
 | WTLFU-03    | Phase 2 — W-TinyLFU Core | Pending |
 | WTLFU-04    | Phase 2 — W-TinyLFU Core | Pending |

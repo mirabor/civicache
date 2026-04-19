@@ -54,7 +54,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. W-TinyLFU beats LRU at α≥0.8 across every cache size on Congress replay-Zipf; W-TinyLFU is within ±2% of LRU at α=0 (uniform)
 **Plans**: 6 plans across 5 execution waves
 - [x] 02-01-PLAN.md — Caffeine v3.x pre-work: pull FrequencySketch.java + BoundedLocalCache.java, lock CMS update rule + D-08a..D-08e edge-case rules (Wave 1, BLOCKING, autonomous) — completed 2026-04-19, commit 665c767, output `.planning/phases/02-w-tinylfu-core/02-01-CAFFEINE-NOTES.md` (549 lines, 6 deviations documented)
-- [ ] 02-02-PLAN.md — include/count_min_sketch.h: 4-bit packed CMS, depth=4, width=nextpow2, FNV-1a seeded, periodic halving (Wave 2, autonomous, WTLFU-01)
+- [x] 02-02-PLAN.md — include/count_min_sketch.h: 4-bit packed CMS, depth=4, width=nextpow2, FNV-1a seeded, periodic halving (Wave 2, autonomous, WTLFU-01)
 - [ ] 02-03-PLAN.md — include/wtinylfu.h + cache.h subordinate-include + main.cpp make_policy widen + --policies dispatch (Wave 3, autonomous, WTLFU-02 + WTLFU-03)
 - [ ] 02-04-PLAN.md — tests/test_wtinylfu.cpp standalone test binary + Makefile test target (Wave 4, autonomous, WTLFU-04)
 - [ ] 02-05-PLAN.md — scripts/plot_results.py POLICY_COLORS/MARKERS W-TinyLFU entry (Wave 4, autonomous, WTLFU-02)
@@ -111,7 +111,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Enabling Refactors & CourtListener Pilot | 0/6 | Not started | - |
-| 2. W-TinyLFU Core | 0/6 | Not started | - |
+| 2. W-TinyLFU Core | 2/6 | In Progress | - |
 | 3. CourtListener Trace Collection & Replay Sweep | 0/TBD | Not started | - |
 | 4. SHARDS Large-Scale Validation & Ablations | 0/TBD | Not started | - |
 | 5. Cross-Workload Analysis Infrastructure | 0/TBD | Not started | - |
