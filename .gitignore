@@ -25,10 +25,19 @@ cache_sim
 *.smod
 
 # Trace data (large files, collected per-user)
-traces/
+# NOTE: use traces/* (not traces/) so specific files can be re-included below per D-15
+traces/*
 
 # Simulation outputs (regenerable)
-results/
+# NOTE: use results/** (not results/) so specific files can be re-included below per D-15
+results/**
+
+# Phase 3 (D-15): committed trace + collection report
+!traces/court_trace.csv
+!traces/court_pilot.csv
+!results/court/
+!results/court/collection_report.txt
+!results/court/pilot_report.txt
 
 # Python venv
 .venv/
