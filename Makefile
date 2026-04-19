@@ -28,16 +28,17 @@ $(OBJDIR):
 clean:
 	rm -rf $(OBJDIR) $(TARGET)
 
-# Quick run with defaults (synthetic Zipf, alpha=0.8)
+# Quick run with defaults (synthetic Zipf, alpha=0.8). Writes to congress subdir
+# per D-06; callers override --output-dir to target other workloads.
 run: $(TARGET)
-	mkdir -p results
-	./$(TARGET)
+	mkdir -p results/congress
+	./$(TARGET) --output-dir results/congress
 
-# Full run: MRC + alpha sweep + SHARDS
+# Full run: MRC + alpha sweep + SHARDS into results/congress/
 run-sweep: $(TARGET)
-	mkdir -p results
-	./$(TARGET) --alpha-sweep --shards
+	mkdir -p results/congress
+	./$(TARGET) --alpha-sweep --shards --output-dir results/congress
 
-# Generate plots from results/
+# Generate plots from results/congress/ (default --workload=congress)
 plots:
 	python3 scripts/plot_results.py
