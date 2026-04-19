@@ -12,6 +12,7 @@
 #include "trace_gen.h"
 #include "workload_stats.h"
 #include "shards.h"
+#include "hash_util.h"
 
 // ==================== Helpers ====================
 
@@ -122,6 +123,11 @@ int main(int argc, char* argv[]) {
             print_usage(argv[0]);
             return 1;
         }
+    }
+
+    if (!hash_util_self_test()) {
+        std::cerr << "hash_util self-test failed — aborting\n";
+        return 1;
     }
 
     std::cout << "=== Cache Policy Simulator for Legislative Workloads ===\n\n";
