@@ -74,28 +74,28 @@ std::vector<TraceEntry> generate_zipf_trace(uint64_t num_requests, uint64_t num_
 
 // ==================== Replay with Zipf Popularity ====================
 
-std::vector<TraceEntry> replay_zipf(const std::vector<TraceEntry>& real_trace,
-                                     uint64_t num_requests, double alpha,
-                                     uint64_t seed) {
-    // Extract unique objects, keeping the first-seen size for each key
+std::vector<std::pair<std::string, uint64_t>> prepare_objects(
+        const std::vector<TraceEntry>& raw_trace, uint64_t seed) {
+    // Extract unique objects, keeping the first-seen size per key.
     std::unordered_map<std::string, uint64_t> seen;
-    std::vector<std::pair<std::string, uint64_t>> objects; // (key, size)
-    for (auto& e : real_trace) {
+    std::vector<std::pair<std::string, uint64_t>> objects;
+    for (auto& e : raw_trace) {
         if (!seen.count(e.key)) {
             seen[e.key] = e.size;
             objects.push_back({e.key, e.size});
         }
     }
-
-    std::cout << "Replay-Zipf: " << objects.size() << " unique objects from real trace, "
-              << "generating " << num_requests << " accesses with alpha=" << alpha << "\n";
-
-    // Shuffle object order so Zipf ranking isn't tied to collection order
+    // Shuffle object order so Zipf ranking isn't tied to collection order.
+    // Uses seed (not seed+1) — seed+1 is reserved for the Zipf RNG (D-10).
     std::mt19937_64 shuffle_rng(seed);
     std::shuffle(objects.begin(), objects.end(), shuffle_rng);
+    return objects;
+}
 
+std::vector<TraceEntry> generate_replay_trace(
+        const std::vector<std::pair<std::string, uint64_t>>& objects,
+        uint64_t num_requests, double alpha, uint64_t seed) {
     ZipfGenerator zipf(objects.size(), alpha, seed + 1);
-
     std::vector<TraceEntry> trace;
     trace.reserve(num_requests);
     for (uint64_t i = 0; i < num_requests; i++) {
@@ -103,4 +103,17 @@ std::vector<TraceEntry> replay_zipf(const std::vector<TraceEntry>& real_trace,
         trace.push_back({i, objects[rank].first, objects[rank].second});
     }
     return trace;
+}
+
+std::vector<TraceEntry> replay_zipf(const std::vector<TraceEntry>& real_trace,
+                                     uint64_t num_requests, double alpha,
+                                     uint64_t seed) {
+    // Thin wrapper (D-11): preserves pre-refactor behavior including the
+    // informational stdout line. New code that wants to share prepared
+    // objects across an alpha sweep should call prepare_objects +
+    // generate_replay_trace directly (see src/main.cpp alpha-sweep loop).
+    auto objects = prepare_objects(real_trace, seed);
+    std::cout << "Replay-Zipf: " << objects.size() << " unique objects from real trace, "
+              << "generating " << num_requests << " accesses with alpha=" << alpha << "\n";
+    return generate_replay_trace(objects, num_requests, alpha, seed);
 }
