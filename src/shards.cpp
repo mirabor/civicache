@@ -4,6 +4,7 @@
 #include <functional>
 #include <iostream>
 #include <limits>
+#include "hash_util.h"
 
 // ==================== Exact Stack Distances ====================
 // O(n * unique_keys) — only use on small traces for validation.
@@ -83,13 +84,7 @@ SHARDS::SHARDS(double rate) : rate_(rate) {
 }
 
 uint64_t SHARDS::hash_key(const std::string& key) const {
-    // FNV-1a 64-bit hash
-    uint64_t hash = 14695981039346656037ULL;
-    for (char c : key) {
-        hash ^= (uint64_t)(unsigned char)c;
-        hash *= 1099511628211ULL;
-    }
-    return hash;
+    return fnv1a_64(key);
 }
 
 void SHARDS::access(const std::string& key) {
