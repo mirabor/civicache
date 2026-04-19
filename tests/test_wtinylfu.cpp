@@ -1,5 +1,5 @@
 // Standalone W-TinyLFU + CountMinSketch test binary.
-// Pure C++17 assert() per CONTEXT.md D-06 — no Catch2/googletest.
+// Pure C++17 assert() per CONTEXT.md D-06 — no third-party test framework.
 // Run: make test (builds build/test/test_wtinylfu and runs it).
 //
 // Coverage (CONTEXT.md D-05):
