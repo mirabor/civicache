@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: executing
+stopped_at: "Phase 1 complete (verifier: human_needed, user approved); 6 requirements satisfied (REFACTOR-01..04, TRACE-03, TRACE-04); build clean under -Wall -Wextra; CourtListener pilot ALL PASS"
+last_updated: "2026-04-19T03:20:29.108Z"
+last_activity: 2026-04-19 -- Phase 02 planning complete
+progress:
+  total_phases: 6
+  completed_phases: 1
+  total_plans: 12
+  completed_plans: 6
+  percent: 50
+---
+
 # Project State
 
 ## Project Reference
@@ -11,14 +27,15 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 
 Phase: 2 of 6 (W-TinyLFU Core)
 Plan: Not yet planned
-Status: Ready to discuss / plan Phase 2
-Last activity: 2026-04-18 — Phase 1 complete: FNV-1a extracted, replay_zipf split, accesses_per_sec column added, results/ reorg'd, CourtListener token configured, 200-request pilot ALL PASS (4/4 endpoints, zero 403s)
+Status: Ready to execute
+Last activity: 2026-04-19 -- Phase 02 planning complete
 
 Progress: [██░░░░░░░░] 17% (1 of 6 phases)
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 6
 - Average duration: ~3-5 min per autonomous plan (worktree-parallel)
 - Total execution time: ~45 min wall-clock for Phase 1 (gated on user CourtListener registration)
@@ -30,6 +47,7 @@ Progress: [██░░░░░░░░] 17% (1 of 6 phases)
 | 1     | 6     | ~45m  | ~3-8m    |
 
 **Recent Trend:**
+
 - Last 5 plans: 01-01 (2m25s), 01-02 (2m45s), 01-06 (5m live pilot), 01-03 (3m), 01-04 (6m)
 - Trend: Stable — autonomous plans 2-6 min, human-gated plans limited by user turnaround
 
@@ -57,13 +75,16 @@ None yet.
 ### Blockers/Concerns
 
 Phase 1 risks resolved:
+
 - C1/C2/C3 CLEARED: CourtListener token verified via live curl; all 4 endpoints (/dockets/, /opinions/, /clusters/, /courts/) returned 200 with zero 403s and zero 429s during the 200-request pilot (90%/74%/90%/100% success rates).
 
 Open items for Phase 2:
+
 - C6: W-TinyLFU must mirror Caffeine `WindowTinyLfuPolicy` line-by-line, not paraphrase the paper
 - Pre-work verification: pull Caffeine `FrequencySketch.java` and confirm `sampleSize = 10×max(capacity,1)` before locking CMS constants
 
 Phase 1 human-UAT items (non-blocking, deferred to post-merge):
+
 - HUMAN-UAT: Visual sanity of `results/congress/figures/*.pdf` pending
 - HUMAN-UAT: `make plots` end-to-end on user's machine (libexpat/DYLD workaround)
 - Stale CSVs in `results/congress/` (alpha_sensitivity.csv, shards_mrc.csv pre-refactor) — regenerate via `make run-sweep` before Phase 2 consumes them

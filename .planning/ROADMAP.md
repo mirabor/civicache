@@ -52,7 +52,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `include/wtinylfu.h` exists — 1% window LRU + 99% main SLRU (80% protected / 20% probationary) + TinyLFU admission via CMS; selectable through `make_policy("wtinylfu", ...)`
   3. Unit test passes: a 20-access hot object survives a subsequent 1000-access sequential scan of unique keys
   4. W-TinyLFU beats LRU at α≥0.8 across every cache size on Congress replay-Zipf; W-TinyLFU is within ±2% of LRU at α=0 (uniform)
-**Plans**: TBD
+**Plans**: 6 plans across 5 execution waves
+- [ ] 02-01-PLAN.md — Caffeine v3.x pre-work: pull FrequencySketch.java + BoundedLocalCache.java, lock CMS update rule + D-08a..D-08e edge-case rules (Wave 1, BLOCKING, autonomous)
+- [ ] 02-02-PLAN.md — include/count_min_sketch.h: 4-bit packed CMS, depth=4, width=nextpow2, FNV-1a seeded, periodic halving (Wave 2, autonomous, WTLFU-01)
+- [ ] 02-03-PLAN.md — include/wtinylfu.h + cache.h subordinate-include + main.cpp make_policy widen + --policies dispatch (Wave 3, autonomous, WTLFU-02 + WTLFU-03)
+- [ ] 02-04-PLAN.md — tests/test_wtinylfu.cpp standalone test binary + Makefile test target (Wave 4, autonomous, WTLFU-04)
+- [ ] 02-05-PLAN.md — scripts/plot_results.py POLICY_COLORS/MARKERS W-TinyLFU entry (Wave 4, autonomous, WTLFU-02)
+- [ ] 02-06-PLAN.md — Validation sweep on Congress trace + scripts/check_wtlfu_acceptance.py (Wave 5, autonomous, WTLFU-05)
 
 ### Phase 3: CourtListener Trace Collection & Replay Sweep
 **Goal**: A real ≥20K-request CourtListener trace exists on disk, and all six policies have been run on it via replay-Zipf, producing the second-workload data needed for cross-workload analysis.
@@ -105,7 +111,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Enabling Refactors & CourtListener Pilot | 0/6 | Not started | - |
-| 2. W-TinyLFU Core | 0/TBD | Not started | - |
+| 2. W-TinyLFU Core | 0/6 | Not started | - |
 | 3. CourtListener Trace Collection & Replay Sweep | 0/TBD | Not started | - |
 | 4. SHARDS Large-Scale Validation & Ablations | 0/TBD | Not started | - |
 | 5. Cross-Workload Analysis Infrastructure | 0/TBD | Not started | - |
