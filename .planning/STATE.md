@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-04-19T06:06:27.849Z"
-last_activity: 2026-04-19 -- Phase 03 planning complete
+stopped_at: Phase 03 Plan 01 complete — scripts/collect_court_trace.py ready for overnight 20K run
+last_updated: "2026-04-19T06:12:34Z"
+last_activity: 2026-04-19 -- Phase 03 Plan 01 completed (scripts/collect_court_trace.py, 609 lines, 10-row smoke PASS)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 15
-  completed_plans: 12
-  percent: 80
+  completed_plans: 13
+  percent: 87
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A defensible, well-analyzed comparison of cache eviction policies on real legislative + judicial API workloads, delivered as a submission-ready paper + code + AI-use report + live demo.
-**Current focus:** Phase 02 — W-TinyLFU Core
+**Current focus:** Phase 03 — CourtListener Trace Collection & Replay Sweep
 
 ## Current Position
 
-Phase: 02 (W-TinyLFU Core) — COMPLETE
-Plan: 6 of 6 complete (next: Phase 3 CourtListener trace collection + 6-policy sweep)
-Status: Ready to execute
-Last activity: 2026-04-19 -- Phase 03 planning complete
+Phase: 03 (CourtListener Trace Collection & Replay Sweep) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 03 — Plan 01 complete; Plan 02 (overnight 20K run) next
+Last activity: 2026-04-19 -- Phase 03 Plan 01 completed (scripts/collect_court_trace.py, 609 lines, 10-row smoke PASS in 14s, exit 0)
 
-Progress: [██████████] 100% (2 of 6 phases, 12 of 12 plans — Phase 2 milestone)
+Progress: [█████████░] 87% (2 of 6 phases, 13 of 15 plans — Phase 3 in progress)
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [██████████] 100% (2 of 6 phases, 12 of 12 plans �
 | Phase 02 P04 | 3m 20s | 2 tasks | 2 files |
 | Phase 02 P05 | 2m | 1 tasks | 2 files |
 | Phase 02 P06 | 2m | 2 tasks | 1 file |
+| Phase 03 P01 | 3m 53s | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,7 @@ Recent decisions affecting current work (from research phase):
 - [Phase 02]: Plan 02-04 (test binary + make test): CMS basics uses N=10 (below 4-bit COUNTER_MAX=15) for exact CONSERVATIVE-update estimate reads at width>=1024; aging test uses BOTH force_age() (deterministic D-10 hook) AND sample_size+10 burst (natural auto-halve path, asserts sample_count()==10 exactly); WTLFU-04 literal sizing cap_bytes=20000/obj_size=100/n_obj_hint=200 yields ~200-resident cache overflowed 5x by 1000-key scan; TEST_ASSERT accumulates failures (not abort-on-first) so one `make test` surfaces every broken invariant; build/test/ separate object dir (D-07) — `make && make test` does not invalidate main cache_sim
 - [Phase 02]: Plan 02-05 (plot_results W-TinyLFU entry): POLICY_COLORS['W-TinyLFU']=#8c564b (matplotlib tab:brown, the 6th tab10 color) — deliberately NOT CONTEXT.md's suggested purple #9467bd because SIEVE owns it; POLICY_MARKERS['W-TinyLFU']='P' (filled plus) — deliberately NOT CONTEXT.md's suggested 'D' because S3-FIFO owns it; both deviations avoid T-02-05-01 "visual confusion" collision; dict key is exact CSV policy string 'W-TinyLFU' emitted by wtinylfu.h::name() (not 'wtinylfu' CLI arg); no plot-function edits because existing loops at lines 79/113/150 use .get(policy, fallback); `make plots` on existing Congress CSVs regenerates 6 PDFs (no W-TinyLFU legend entry yet because Phase 1 CSVs predate the policy — 02-06 will fix); Rule 3 hygiene added __pycache__/ + *.pyc to .gitignore since import smoke test creates scripts/__pycache__/
 - [Phase 02]: Plan 02-06 (validation sweep on Congress + WTLFU-05 gate): scripts/check_wtlfu_acceptance.py at 10f96e3 checks 3 conditions (A1 mrc.csv WTLFU<LRU at every cache fraction, A2 alpha_sensitivity.csv WTLFU<LRU at alpha ≥ 0.8, B one-sided regression guard at alpha=0.6); Condition B semantics changed from two-sided abs(WTLFU-LRU)/LRU≤0.02 to ONE-SIDED (WTLFU-LRU)/LRU≤0.02 via checkpoint decision — rationale: WTLFU-05 literal "within ±2% of LRU at α=0 uniform" is a REGRESSION GUARD against LFU-flavor policies underperforming LRU on flat workloads, NOT a penalty for WTLFU outperforming LRU; at alpha=0.6 WTLFU beats LRU by 7.84% which two-sided abs() would flag as failure — opposite of intent; W-TinyLFU monotonically dominates LRU across full sweep grid alpha {0.6..1.2} with advantage growing 7.84% → 21.55% as skew rises (matches TinyLFU theory on OHW filtering); LOW_ALPHA_PROXY=0.6 (lowest value in hardcoded src/main.cpp:216 sweep grid) used as uniform proxy since alpha=0 not in grid; TOLERANCE=0.02 constant + LOW_ALPHA_PROXY=0.6 constant + HIGH_ALPHA=[0.8..1.2] list all preserved for grep-discoverable spec-drift path (T-02-06-01); sweep itself ran in prior session — 6 policies × 7 alphas × 6 cache fractions regenerated into results/congress/{alpha_sensitivity.csv, mrc.csv} (gitignored); make plots exit 0 → 6 PDFs in results/congress/figures/ now render W-TinyLFU in brown/plus per Wave 4 styling; Phase 2 milestone complete — all 5 WTLFU-01..05 requirements verified
+- [Phase 03]: Plan 03-01 (scripts/collect_court_trace.py production collector) at e9d8557: 609-line sibling to scripts/pilot_court_trace.py (NOT a replacement per STACK.md §32 copy-modify policy); all 26 grep-discoverable invariants pass on first write (ALLOWED_HOST, BASE_URL, BASE_DELAY=0.8, JITTER=0.4, OPINION_METADATA_FRACTION=0.8, D-02 field set "id,absolute_url,type,date_filed,author_id", [0,30,90] ramp, CONSECUTIVE_429_HARD_STOP=5, exact FATAL diagnostic "FATAL: 5 consecutive 429s — token throttled or pacing too aggressive. Resume after 1 hour.", PER_ENDPOINT_TARGET=5000, --resume, FALLBACK_PROBE_WINDOW=500, FALLBACK_NARROW_FACTOR=0.67, COURTLISTENER_API_KEY, f.flush(), all 4 endpoint templates, court_ids list); D-11 429 ramp counter is PER-ENDPOINT (matches pilot semantics) with index-clamp reusing the +90 bucket for 4th consecutive before the 5-consec hard-stop fires; Retry-After value clamped to [0, 120]s to protect against pathological server hints; D-06 fallback evaluated AFTER the 500th response lands (fallback_triggered latch ensures at most one narrowing per endpoint); target-rows remainder distributed 1-per-endpoint to first N so 10-row smoke touches all 4 families (observed: docket=3, opinion=3, cluster=2, court=2); module-level assert urlparse(BASE_URL).netloc == ALLOWED_HOST + per-request urlparse(url) check = defence-in-depth SSRF mitigation for T-03-01-01; token fingerprint-only logging (api_key[:4]+"..."+api_key[-4:]+len, never raw); 10-row smoke run against live CourtListener API completed in 14s exit 0 with well-formed CSV (CRLF line endings matching traces/court_pilot.csv schema verbatim); observed smoke pacing ~1.27s/issued-request (0.8s base + ~0.2s jitter + ~0.07s network RTT) revises Plan 03-02 runtime estimate UP from ROADMAP's 6.1h to ~8h wall-clock for 20K successful rows at 85% aggregate success rate (~23,530 issued requests); Plan 03-02 unblocked
 
 ### Pending Todos
 
@@ -114,6 +116,6 @@ Items deferred to v2 (from REQUIREMENTS.md):
 
 ## Session Continuity
 
-Last session: 2026-04-19T05:41:22.277Z
-Stopped at: Phase 3 context gathered
-Resume: execute Phase 3 (CourtListener Trace Collection & Replay Sweep) — TRACE-05 scripts/collect_court_trace.py with 0.8s + 0-0.4s jitter + Retry-After + 80%/20% metadata/plain_text mix, TRACE-06 collect ≥20K-request trace, TRACE-07 full 6-policy sweep on court trace via replay-Zipf; Phase 3 planning phase needed first (plans TBD per ROADMAP.md §Phase 3)
+Last session: 2026-04-19T06:12:34Z
+Stopped at: Phase 03 Plan 01 complete — scripts/collect_court_trace.py ready for overnight 20K run
+Resume: execute Plan 03-02 (overnight 20K collection — checkpoint wave) via `python3 scripts/collect_court_trace.py --output traces/court_trace.csv --report results/court/collection_report.txt --target-rows 20000`; expected ~8h wall-clock based on observed smoke pacing (~1.27s/issued-request × ~23,530 issued for 20K at 85% success); --resume path coded but untested against a real partial — first live test is if 03-02 is interrupted

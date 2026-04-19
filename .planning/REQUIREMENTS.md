@@ -55,7 +55,7 @@
 
 - [x] **TRACE-03**: Register CourtListener account, obtain API token, store as `COURTLISTENER_API_KEY` env var (verified Phase 1)
 - [x] **TRACE-04**: Pilot 200-request run (4 endpoints: `/dockets/`, `/opinions/`, `/clusters/`, `/courts/`) to tune ID ranges for ≥70% success rate (verified Phase 1 — 90%/74%/90%/100%)
-- [ ] **TRACE-05**: Implement `scripts/collect_court_trace.py` — 0.8s + 0-0.4s jitter, backoff, 80% metadata / 20% full plain_text mix
+- [x] **TRACE-05**: Implement `scripts/collect_court_trace.py` — 0.8s + 0-0.4s jitter, backoff, 80% metadata / 20% full plain_text mix (verified Phase 3 Plan 01 — scripts/collect_court_trace.py at e9d8557, 609 lines; all 26 grep-discoverable invariants pass including D-02 minimal field set, [0,30,90] 429 ramp, 5-consec hard-stop with exact FATAL diagnostic, module-level + per-request urlparse host allowlist, --resume by endpoint-prefix classification; 10-row smoke against live CourtListener API in 14s exit 0 — actual 20K data collection is TRACE-06 / Plan 03-02)
 - [ ] **TRACE-06**: Collect ≥20K-request CourtListener trace
 - [ ] **TRACE-07**: Run full policy sweep (6 policies) on court trace via replay-Zipf
 

@@ -69,7 +69,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `results/court/trace.csv` (or equivalent — per CONTEXT D-15 the committed path is `traces/court_trace.csv`) contains ≥20,000 successful `(timestamp, key, size)` rows with per-endpoint success tallies logged
   3. A full 6-policy sweep (LRU, FIFO, CLOCK, S3-FIFO, SIEVE, W-TinyLFU) on the court trace via replay-Zipf completes and writes MRC/byte-MRC/alpha-sensitivity CSVs under `results/court/`
 **Plans**: 3 plans across 3 execution waves
-- [ ] 03-01-PLAN.md — Build scripts/collect_court_trace.py (D-01..D-11) with 80/20 ?fields= mix, 0.8s+0.4s jitter, Retry-After ramp [0,30,90], 5-consec-429 hard-stop, host allowlist, --resume; smoke-verified via 10-row run (Wave 1, autonomous, TRACE-05)
+- [x] 03-01-PLAN.md — Build scripts/collect_court_trace.py (D-01..D-11) with 80/20 ?fields= mix, 0.8s+0.4s jitter, Retry-After ramp [0,30,90], 5-consec-429 hard-stop, host allowlist, --resume; smoke-verified via 10-row run (Wave 1, autonomous, TRACE-05) — completed 2026-04-19, commit e9d8557, 609 lines, 10-row smoke in 14s exit 0
 - [ ] 03-02-PLAN.md — Run overnight 20K collection; produce traces/court_trace.csv (≥20,001 lines) + results/court/collection_report.txt; commit both per D-15 (Wave 2, checkpoint overnight run, TRACE-06)
 - [ ] 03-03-PLAN.md — scripts/workload_stats_json.py (D-13); Makefile WORKLOAD+TRACE parameterization; `make run-sweep WORKLOAD=court TRACE=traces/court_trace.csv` 6-policy replay-Zipf sweep; regenerate figures via `make plots WORKLOAD=court` (Wave 3, autonomous, TRACE-06 + TRACE-07)
 
@@ -114,7 +114,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Enabling Refactors & CourtListener Pilot | 6/6 | Complete | 2026-04-18 |
 | 2. W-TinyLFU Core | 6/6 | Complete | 2026-04-19 |
-| 3. CourtListener Trace Collection & Replay Sweep | 0/3 | Planned | - |
+| 3. CourtListener Trace Collection & Replay Sweep | 1/3 | In progress | - |
 | 4. SHARDS Large-Scale Validation & Ablations | 0/TBD | Not started | - |
 | 5. Cross-Workload Analysis Infrastructure | 0/TBD | Not started | - |
 | 6. Writeup & Demo | 0/TBD | Not started | - |
