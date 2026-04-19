@@ -21,7 +21,7 @@ static void print_usage(const char* prog) {
               << "Options:\n"
               << "  --trace <file>         Use a trace CSV instead of synthetic generation\n"
               << "  --cache-sizes <list>   Comma-separated cache size fractions (default: 0.001,0.005,0.01,0.02,0.05,0.1)\n"
-              << "  --policies <list>      Comma-separated policies: lru,fifo,clock,s3fifo,sieve (default: all)\n"
+              << "  --policies <list>      Comma-separated policies: lru,fifo,clock,s3fifo,sieve,wtinylfu (default: all)\n"
               << "  --output-dir <dir>     Output directory (default: results)\n"
               << "  --num-requests <n>     Number of synthetic requests (default: 500000)\n"
               << "  --num-objects <n>      Number of unique objects for synthetic trace (default: 50000)\n"
@@ -56,13 +56,17 @@ static uint64_t working_set_bytes(const std::vector<TraceEntry>& trace) {
     return total;
 }
 
-// Create a cache policy by name
-static std::unique_ptr<CachePolicy> make_policy(const std::string& name, uint64_t capacity) {
-    if (name == "lru")    return std::make_unique<LRUCache>(capacity);
-    if (name == "fifo")   return std::make_unique<FIFOCache>(capacity);
-    if (name == "clock")  return std::make_unique<CLOCKCache>(capacity);
-    if (name == "s3fifo") return std::make_unique<S3FIFOCache>(capacity);
-    if (name == "sieve")  return std::make_unique<SIEVECache>(capacity);
+// Create a cache policy by name. n_objects_hint is consumed only by the
+// wtinylfu branch (sizes its embedded CountMinSketch width per D-02);
+// other policies ignore it.
+static std::unique_ptr<CachePolicy> make_policy(const std::string& name, uint64_t capacity, uint64_t n_objects_hint) {
+    (void)n_objects_hint;  // only W-TinyLFU consumes this
+    if (name == "lru")      return std::make_unique<LRUCache>(capacity);
+    if (name == "fifo")     return std::make_unique<FIFOCache>(capacity);
+    if (name == "clock")    return std::make_unique<CLOCKCache>(capacity);
+    if (name == "s3fifo")   return std::make_unique<S3FIFOCache>(capacity);
+    if (name == "sieve")    return std::make_unique<SIEVECache>(capacity);
+    if (name == "wtinylfu") return std::make_unique<WTinyLFUCache>(capacity, n_objects_hint);
     return nullptr;
 }
 
@@ -80,7 +84,7 @@ int main(int argc, char* argv[]) {
     std::string trace_file;
     std::string output_dir = "results";
     std::vector<double> cache_fracs = {0.001, 0.005, 0.01, 0.02, 0.05, 0.1};
-    std::vector<std::string> policy_names = {"lru", "fifo", "clock", "s3fifo", "sieve"};
+    std::vector<std::string> policy_names = {"lru", "fifo", "clock", "s3fifo", "sieve", "wtinylfu"};
     uint64_t num_requests = 500000;
     uint64_t num_objects = 50000;
     double alpha = 0.8;
@@ -178,7 +182,8 @@ int main(int argc, char* argv[]) {
         std::cout << std::setw(12) << "Cache%";
         for (auto& pn : policy_names) {
             std::string label = pn;
-            if (pn == "s3fifo") label = "S3-FIFO";
+            if (pn == "s3fifo")        label = "S3-FIFO";
+            else if (pn == "wtinylfu") label = "W-TinyLFU";
             else for (auto& c : label) c = toupper(c);
             std::cout << std::setw(10) << label;
         }
@@ -186,10 +191,15 @@ int main(int argc, char* argv[]) {
 
         for (double frac : cache_fracs) {
             uint64_t cache_bytes = (uint64_t)(total_bytes * frac);
+            // D-02: CMS width derives from capacity / avg-object-size.
+            // ws.mean_size is the outer characterize() result; stable across
+            // this loop (prepared object set is the same).
+            uint64_t avg_obj = std::max<uint64_t>(1, (uint64_t)ws.mean_size);
+            uint64_t n_obj_hint = std::max<uint64_t>(1, cache_bytes / avg_obj);
             std::cout << std::setw(10) << std::setprecision(1) << (frac * 100) << "%";
 
             for (auto& pn : policy_names) {
-                auto p = make_policy(pn, cache_bytes);
+                auto p = make_policy(pn, cache_bytes, n_obj_hint);
                 if (!p) {
                     std::cerr << "Unknown policy: " << pn << "\n";
                     continue;
@@ -222,7 +232,8 @@ int main(int argc, char* argv[]) {
         std::cout << std::setw(8) << "Alpha";
         for (auto& pn : policy_names) {
             std::string label = pn;
-            if (pn == "s3fifo") label = "S3-FIFO";
+            if (pn == "s3fifo")        label = "S3-FIFO";
+            else if (pn == "wtinylfu") label = "W-TinyLFU";
             else for (auto& c : label) c = toupper(c);
             std::cout << std::setw(10) << label;
         }
@@ -242,10 +253,16 @@ int main(int argc, char* argv[]) {
                 : generate_zipf_trace(num_requests, num_objects, a);
             uint64_t wb = working_set_bytes(sweep_trace);
             uint64_t cache_bytes = wb / 100;
+            // D-02: sweep traces resample the SAME prepared_objects key set,
+            // so ws.mean_size is stable across alpha values; re-using the
+            // outer characterize() result avoids O(N) redundant re-scan per
+            // alpha value.
+            uint64_t avg_obj = std::max<uint64_t>(1, (uint64_t)ws.mean_size);
+            uint64_t n_obj_hint = std::max<uint64_t>(1, cache_bytes / avg_obj);
 
             std::cout << std::setw(6) << std::setprecision(1) << a;
             for (auto& pn : policy_names) {
-                auto p = make_policy(pn, cache_bytes);
+                auto p = make_policy(pn, cache_bytes, n_obj_hint);
                 auto t_start = std::chrono::steady_clock::now();
                 run_simulation(sweep_trace, *p);
                 auto t_end = std::chrono::steady_clock::now();
