@@ -39,6 +39,18 @@ run-sweep: $(TARGET)
 	mkdir -p results/congress
 	./$(TARGET) --alpha-sweep --shards --output-dir results/congress
 
-# Generate plots from results/congress/ (default --workload=congress)
+# Generate plots from results/congress/ (default --workload=congress).
+#
+# macOS libexpat workaround: Python 3.14's pyexpat requires a newer libexpat
+# than /usr/lib/libexpat.1.dylib ships. The .venv's Python binary strips
+# DYLD_LIBRARY_PATH (hardened runtime), so invoke the real Homebrew python
+# directly and point DYLD_LIBRARY_PATH at the Homebrew libexpat; use
+# PYTHONPATH to pick up matplotlib from the .venv's site-packages.
+#
+# Override by exporting PLOT_PYTHON and PLOT_PYTHONPATH if your setup differs.
+PLOT_PYTHON ?= /opt/homebrew/opt/python@3.14/bin/python3.14
+PLOT_PYTHONPATH ?= .venv/lib/python3.14/site-packages
 plots:
-	python3 scripts/plot_results.py
+	DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib \
+	PYTHONPATH=$(PLOT_PYTHONPATH) \
+	$(PLOT_PYTHON) scripts/plot_results.py

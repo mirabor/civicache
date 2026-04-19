@@ -111,7 +111,7 @@ What's explicitly NOT in this phase: CourtListener production collection (Phase 
 <specifics>
 ## Specific Ideas
 
-- Reuse the existing `.env` + `DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib` activation pattern — don't try to fix the Homebrew Python libexpat issue in this phase
+- Reuse the existing `.env` + `DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib` activation pattern — don't try to fix the Homebrew Python libexpat issue in this phase. **(Update 2026-04-19 during UAT: the old workaround was stale under macOS hardened runtime + Python 3.14. The Makefile `plots` target now bakes in a working invocation: call `/opt/homebrew/opt/python@3.14/bin/python3.14` directly with DYLD_LIBRARY_PATH + PYTHONPATH pointing to .venv's site-packages. See Makefile lines 43-56. Python scripts run from other contexts still need the env-var pattern.)**
 - The pilot script should live at `scripts/pilot_court_trace.py` (separate from the production `scripts/collect_court_trace.py` that Phase 3 will create) so it's clear the pilot is throwaway verification code
 - Emit a summary line at the end of the pilot: `200s / 404s / 403s / 429s / total` per endpoint so the ≥70% gate is trivially checkable
 - FNV-1a self-test: call `fnv1a_64("hello")` and assert it equals the known FNV-1a 64-bit result (from Wikipedia) at startup — catches bit-width mistakes early
