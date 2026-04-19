@@ -406,3 +406,8 @@ public:
     std::string name() const override { return "SIEVE"; }
     void reset() override { queue_.clear(); map_.clear(); current_size_ = 0; hand_valid_ = false; stats = {}; }
 };
+
+// ==================== W-TinyLFU ====================
+// Subordinate header; defined after CachePolicy so WTinyLFUCache : public CachePolicy
+// has the base class in scope. See .planning/phases/02-w-tinylfu-core/02-CONTEXT.md L-11.
+#include "wtinylfu.h"

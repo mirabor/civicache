@@ -37,15 +37,20 @@
 class WTinyLFUCache : public CachePolicy {
 public:
     WTinyLFUCache(uint64_t capacity_bytes, uint64_t n_objects_hint)
-        : total_capacity_(capacity_bytes),
-          window_capacity_(std::max<uint64_t>(1, capacity_bytes / 100)),
+        : window_capacity_(std::max<uint64_t>(1, capacity_bytes / 100)),
           main_capacity_(capacity_bytes > window_capacity_
                              ? capacity_bytes - window_capacity_
                              : 0),
           protected_capacity_((main_capacity_ * 80) / 100),
-          probation_capacity_(main_capacity_ - protected_capacity_),
           cms_(std::max<uint64_t>(1, n_objects_hint))
-    {}
+    {
+        // total_capacity_bytes = window_capacity_ + main_capacity_ and
+        // probation_capacity_bytes = main_capacity_ - protected_capacity_
+        // are implied by the invariants and not stored — they aren't
+        // referenced elsewhere in the policy (main_capacity_ is the
+        // effective admission budget; probation is bounded by "main - protected").
+        (void)capacity_bytes;
+    }
 
     bool access(const std::string& key, uint64_t size) override {
         // Caffeine increments on EVERY access (hit OR miss, regardless of
@@ -123,11 +128,9 @@ private:
     using List  = std::list<Entry>;
     using Map   = std::unordered_map<std::string, List::iterator>;
 
-    uint64_t total_capacity_;
     uint64_t window_capacity_;
     uint64_t main_capacity_;
     uint64_t protected_capacity_;
-    uint64_t probation_capacity_;
 
     List window_list_;    Map window_map_;    uint64_t window_size_ = 0;
     List protected_list_; Map protected_map_; uint64_t protected_size_ = 0;
