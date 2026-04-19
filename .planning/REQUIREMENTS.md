@@ -32,10 +32,10 @@
 
 ### Enabling refactors (REFACTOR-xx)
 
-- [ ] **REFACTOR-01**: Extract FNV-1a hash from `src/shards.cpp:85-98` into `include/hash_util.h` with 4 deterministic seeds
-- [ ] **REFACTOR-02**: Refactor `replay_zipf()` to accept a pre-shuffled object list (avoids 7× redundant trace-gen during alpha sweep)
-- [ ] **REFACTOR-03**: Add throughput measurement (`accesses/sec`) to simulation output — new CSV column
-- [ ] **REFACTOR-04**: Reorganize `results/` into per-workload subdirs (`results/congress/`, `results/court/`, `results/shards_large/`, `results/compare/`)
+- [x] **REFACTOR-01**: Extract FNV-1a hash from `src/shards.cpp:85-98` into `include/hash_util.h` with 4 deterministic seeds (verified Phase 1)
+- [x] **REFACTOR-02**: Refactor `replay_zipf()` to accept a pre-shuffled object list (avoids 7× redundant trace-gen during alpha sweep) (verified Phase 1)
+- [x] **REFACTOR-03**: Add throughput measurement (`accesses/sec`) to simulation output — new CSV column (verified Phase 1)
+- [x] **REFACTOR-04**: Reorganize `results/` into per-workload subdirs (`results/congress/`, `results/court/`, `results/shards_large/`, `results/compare/`) (verified Phase 1)
 
 ### W-TinyLFU policy (WTLFU-xx)
 
@@ -53,8 +53,8 @@
 
 ### CourtListener trace (TRACE-xx)
 
-- [ ] **TRACE-03**: Register CourtListener account, obtain API token, store as `COURTLISTENER_API_KEY` env var
-- [ ] **TRACE-04**: Pilot 200-request run (4 endpoints: `/dockets/`, `/opinions/`, `/clusters/`, `/courts/`) to tune ID ranges for ≥70% success rate
+- [x] **TRACE-03**: Register CourtListener account, obtain API token, store as `COURTLISTENER_API_KEY` env var (verified Phase 1)
+- [x] **TRACE-04**: Pilot 200-request run (4 endpoints: `/dockets/`, `/opinions/`, `/clusters/`, `/courts/`) to tune ID ranges for ≥70% success rate (verified Phase 1 — 90%/74%/90%/100%)
 - [ ] **TRACE-05**: Implement `scripts/collect_court_trace.py` — 0.8s + 0-0.4s jitter, backoff, 80% metadata / 20% full plain_text mix
 - [ ] **TRACE-06**: Collect ≥20K-request CourtListener trace
 - [ ] **TRACE-07**: Run full policy sweep (6 policies) on court trace via replay-Zipf
@@ -110,12 +110,12 @@ All 29 v1 requirements below are mapped to exactly one Milestone 2 phase. See `.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REFACTOR-01 | Phase 1 — Enabling Refactors & CourtListener Pilot | Pending |
-| REFACTOR-02 | Phase 1 — Enabling Refactors & CourtListener Pilot | Pending |
-| REFACTOR-03 | Phase 1 — Enabling Refactors & CourtListener Pilot | Pending |
-| REFACTOR-04 | Phase 1 — Enabling Refactors & CourtListener Pilot | Pending |
-| TRACE-03    | Phase 1 — Enabling Refactors & CourtListener Pilot | Pending |
-| TRACE-04    | Phase 1 — Enabling Refactors & CourtListener Pilot | Pending |
+| REFACTOR-01 | Phase 1 — Enabling Refactors & CourtListener Pilot | Verified |
+| REFACTOR-02 | Phase 1 — Enabling Refactors & CourtListener Pilot | Verified |
+| REFACTOR-03 | Phase 1 — Enabling Refactors & CourtListener Pilot | Verified |
+| REFACTOR-04 | Phase 1 — Enabling Refactors & CourtListener Pilot | Verified |
+| TRACE-03    | Phase 1 — Enabling Refactors & CourtListener Pilot | Verified |
+| TRACE-04    | Phase 1 — Enabling Refactors & CourtListener Pilot | Verified |
 | WTLFU-01    | Phase 2 — W-TinyLFU Core | Pending |
 | WTLFU-02    | Phase 2 — W-TinyLFU Core | Pending |
 | WTLFU-03    | Phase 2 — W-TinyLFU Core | Pending |

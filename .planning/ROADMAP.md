@@ -17,7 +17,7 @@ The base simulator (LRU, FIFO, CLOCK, S3-FIFO, SIEVE + Congress.gov replay-Zipf 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Enabling Refactors & CourtListener Pilot** - Extract FNV-1a, refactor replay_zipf, add throughput metric, reorganize results tree, register CourtListener token and run 200-request pilot across planned endpoints
+- [x] **Phase 1: Enabling Refactors & CourtListener Pilot** - Extract FNV-1a, refactor replay_zipf, add throughput metric, reorganize results tree, register CourtListener token and run 200-request pilot across planned endpoints (completed 2026-04-18)
 - [ ] **Phase 2: W-TinyLFU Core** - Implement Count-Min Sketch and W-TinyLFU (1%/99% window/SLRU, conservative update + periodic halving), integrate into CachePolicy hierarchy, validate on Congress replay
 - [ ] **Phase 3: CourtListener Trace Collection & Replay Sweep** - Implement court-records collector, collect ≥20K-request trace, run full 6-policy sweep on court trace via replay-Zipf
 - [ ] **Phase 4: SHARDS Large-Scale Validation & Ablations** - Generate 1M-access synthetic trace, extend SHARDS to 0.01%/0.1%/1%/10% sampling with self-convergence reporting, implement Doorkeeper + ablation figure, S3-FIFO ratio sweep, SIEVE visited-bit ablation
@@ -36,12 +36,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Simulator CSV output contains a new `accesses_per_sec` column; `results/` is reorganized into `{congress, court, shards_large, compare}/` subdirectories
   4. `COURTLISTENER_API_KEY` is configured and a 200-request pilot across `/dockets/`, `/opinions/`, `/clusters/`, `/courts/` returns ≥70% success with no 403s from gated endpoints
 **Plans**: 6 plans across 4 execution waves
-- [ ] 01-01-PLAN.md — Extract FNV-1a into include/hash_util.h with 4 seeds + self-test (Wave 1, autonomous, REFACTOR-01)
-- [ ] 01-02-PLAN.md — Split replay_zipf into prepare_objects + generate_replay_trace; hoist out of alpha sweep (Wave 2, autonomous, REFACTOR-02)
-- [ ] 01-03-PLAN.md — Add accesses_per_sec column to mrc/alpha/shards CSVs; plot_results tolerance (Wave 3, autonomous, REFACTOR-03)
-- [ ] 01-04-PLAN.md — Reorganize results/ into per-workload subdirs; add --workload flag; update Makefile (Wave 4, autonomous, REFACTOR-04)
-- [ ] 01-05-PLAN.md — Register CourtListener account, configure COURTLISTENER_API_KEY, verify via curl (Wave 1, checkpoint, TRACE-03)
-- [ ] 01-06-PLAN.md — Build scripts/pilot_court_trace.py, run 200-request pilot, enforce ≥70% gate (Wave 2, autonomous, TRACE-04)
+- [x] 01-01-PLAN.md — Extract FNV-1a into include/hash_util.h with 4 seeds + self-test (Wave 1, autonomous, REFACTOR-01)
+- [x] 01-02-PLAN.md — Split replay_zipf into prepare_objects + generate_replay_trace; hoist out of alpha sweep (Wave 2, autonomous, REFACTOR-02)
+- [x] 01-03-PLAN.md — Add accesses_per_sec column to mrc/alpha/shards CSVs; plot_results tolerance (Wave 3, autonomous, REFACTOR-03)
+- [x] 01-04-PLAN.md — Reorganize results/ into per-workload subdirs; add --workload flag; update Makefile (Wave 4, autonomous, REFACTOR-04)
+- [x] 01-05-PLAN.md — Register CourtListener account, configure COURTLISTENER_API_KEY, verify via curl (Wave 1, checkpoint, TRACE-03)
+- [x] 01-06-PLAN.md — Build scripts/pilot_court_trace.py, run 200-request pilot, enforce ≥70% gate (Wave 2, autonomous, TRACE-04)
 
 ### Phase 2: W-TinyLFU Core
 **Goal**: A working, validated W-TinyLFU policy plugged into the existing CachePolicy hierarchy — correct behavior on the "hot object survives scan" invariant and the expected α-regime relationship to LRU on Congress replay.

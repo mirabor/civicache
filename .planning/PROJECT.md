@@ -41,8 +41,8 @@ Everything else — second trace, W-TinyLFU, SHARDS rigor — strengthens this c
 
 **Second trace source (PACER/CourtListener):**
 
-- [ ] **TRACE-03**: Research PACER vs CourtListener/RECAP access — pick viable source
-- [ ] **TRACE-04**: Implement court-records trace collector with rate-limiting
+- [x] **TRACE-03**: Research PACER vs CourtListener/RECAP access — pick viable source (validated Phase 1: CourtListener REST v4 picked; token configured; live-API verified)
+- [x] **TRACE-04**: Implement court-records trace collector with rate-limiting (validated Phase 1 as pilot: `scripts/pilot_court_trace.py` — 200-req pilot ALL PASS on 4 endpoints)
 - [ ] **TRACE-05**: Collect a ≥20K-request court records trace
 - [ ] **TRACE-06**: Run all policies on court records via replay-Zipf; compare to Congress
 
@@ -78,7 +78,7 @@ Everything else — second trace, W-TinyLFU, SHARDS rigor — strengthens this c
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| PACER (vs OpenSecrets, SEC EDGAR) as second trace | Stays in public-records legal-adjacent domain; contrasting size distribution (legal documents tend to be larger than bill JSON); richer endpoint taxonomy | — Pending |
+| PACER (vs OpenSecrets, SEC EDGAR) as second trace | Stays in public-records legal-adjacent domain; contrasting size distribution (legal documents tend to be larger than bill JSON); richer endpoint taxonomy | ✓ Validated Phase 1 — CourtListener REST v4 chosen (not PACER direct); 4 endpoint families non-gated for authenticated account |
 | W-TinyLFU (vs just admission filter or basic TinyLFU) | Most impressive of the three options; matches what Caffeine ships; adding a frequency sketch is good systems-course material | — Pending |
 | Larger SHARDS validation trace (synthetic, not real) | Real traces are rate-limited; synthetic gives enough scale (1M+ accesses) to meaningfully test 0.1% and 0.01% sampling | — Pending |
 | Live simulator demo | More engaging than static slides; shows the system working; parameter sweeps let us illustrate findings in real time | — Pending |
@@ -109,4 +109,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 after initialization*
+*Last updated: 2026-04-18 after Phase 1 completion (REFACTOR-01..04, TRACE-03, TRACE-04 verified)*

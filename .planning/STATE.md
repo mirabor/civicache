@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A defensible, well-analyzed comparison of cache eviction policies on real legislative + judicial API workloads, delivered as a submission-ready paper + code + AI-use report + live demo.
-**Current focus:** Phase 1 — Enabling Refactors & CourtListener Pilot
+**Current focus:** Phase 2 — W-TinyLFU Core (Phase 1 complete)
 
 ## Current Position
 
-Phase: 1 of 6 (Enabling Refactors & CourtListener Pilot)
-Plan: Not yet planned (context captured)
-Status: Ready to plan
-Last activity: 2026-04-16 — Phase 1 context captured (throughput granularity, results migration, pilot policy, replay_zipf API shape, FNV-1a seed design)
+Phase: 2 of 6 (W-TinyLFU Core)
+Plan: Not yet planned
+Status: Ready to discuss / plan Phase 2
+Last activity: 2026-04-18 — Phase 1 complete: FNV-1a extracted, replay_zipf split, accesses_per_sec column added, results/ reorg'd, CourtListener token configured, 200-request pilot ALL PASS (4/4 endpoints, zero 403s)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 17% (1 of 6 phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: N/A
-- Total execution time: 0 hours
+- Total plans completed: 6
+- Average duration: ~3-5 min per autonomous plan (worktree-parallel)
+- Total execution time: ~45 min wall-clock for Phase 1 (gated on user CourtListener registration)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 1     | 6     | ~45m  | ~3-8m    |
 
 **Recent Trend:**
-- Last 5 plans: N/A
-- Trend: N/A (no plans executed yet this milestone)
+- Last 5 plans: 01-01 (2m25s), 01-02 (2m45s), 01-06 (5m live pilot), 01-03 (3m), 01-04 (6m)
+- Trend: Stable — autonomous plans 2-6 min, human-gated plans limited by user turnaround
 
 *Updated after each plan completion*
 
@@ -56,11 +56,17 @@ None yet.
 
 ### Blockers/Concerns
 
-Pre-Phase-1 risks flagged by research (address during Phase 1 execution):
+Phase 1 risks resolved:
+- C1/C2/C3 CLEARED: CourtListener token verified via live curl; all 4 endpoints (/dockets/, /opinions/, /clusters/, /courts/) returned 200 with zero 403s and zero 429s during the 200-request pilot (90%/74%/90%/100% success rates).
 
-- C1/C2/C3: CourtListener token must be verified via single curl call before any 20K run; test each of 4 planned endpoints unauthenticated-to-confirm-not-gated
-- C6: W-TinyLFU will be implemented in Phase 2 — mirror Caffeine `WindowTinyLfuPolicy` line-by-line, not paraphrase the paper
+Open items for Phase 2:
+- C6: W-TinyLFU must mirror Caffeine `WindowTinyLfuPolicy` line-by-line, not paraphrase the paper
 - Pre-work verification: pull Caffeine `FrequencySketch.java` and confirm `sampleSize = 10×max(capacity,1)` before locking CMS constants
+
+Phase 1 human-UAT items (non-blocking, deferred to post-merge):
+- HUMAN-UAT: Visual sanity of `results/congress/figures/*.pdf` pending
+- HUMAN-UAT: `make plots` end-to-end on user's machine (libexpat/DYLD workaround)
+- Stale CSVs in `results/congress/` (alpha_sensitivity.csv, shards_mrc.csv pre-refactor) — regenerate via `make run-sweep` before Phase 2 consumes them
 
 ## Deferred Items
 
@@ -74,6 +80,6 @@ Items deferred to v2 (from REQUIREMENTS.md):
 
 ## Session Continuity
 
-Last session: 2026-04-18
-Stopped at: ROADMAP.md and STATE.md written; Phase 1 ready to plan
-Resume file: None (run `/gsd-plan-phase 1` to begin)
+Last session: 2026-04-18 → 2026-04-19
+Stopped at: Phase 1 complete (verifier: human_needed, user approved); 6 requirements satisfied (REFACTOR-01..04, TRACE-03, TRACE-04); build clean under -Wall -Wextra; CourtListener pilot ALL PASS
+Resume: run `/gsd-discuss-phase 2` (recommended — W-TinyLFU has several gray areas) or `/gsd-plan-phase 2` if ready to plan directly
