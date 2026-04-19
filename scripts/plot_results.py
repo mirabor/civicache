@@ -48,6 +48,7 @@ POLICY_COLORS = {
     "CLOCK": "#2ca02c",
     "S3-FIFO": "#d62728",
     "SIEVE": "#9467bd",
+    "W-TinyLFU": "#8c564b",
 }
 
 POLICY_MARKERS = {
@@ -56,6 +57,7 @@ POLICY_MARKERS = {
     "CLOCK": "^",
     "S3-FIFO": "D",
     "SIEVE": "v",
+    "W-TinyLFU": "P",
 }
 
 
