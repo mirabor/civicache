@@ -290,7 +290,7 @@ int main(int argc, char* argv[]) {
 
         std::string csv_path = output_dir + "/shards_mrc.csv";
         std::ofstream csv(csv_path);
-        csv << "sampling_rate,cache_size_objects,miss_ratio\n";
+        csv << "sampling_rate,cache_size_objects,miss_ratio,accesses_per_sec\n";
 
         for (double rate : rates) {
             SHARDS shards(rate);
@@ -298,13 +298,15 @@ int main(int argc, char* argv[]) {
             shards.process(trace);
             auto t_end = std::chrono::steady_clock::now();
             double elapsed = std::chrono::duration<double>(t_end - t_start).count();
+            double accesses_per_sec = elapsed > 0 ? (double)trace.size() / elapsed : 0.0;
 
             auto mrc = shards.build_mrc(max_cache, 100);
             std::cout << "  Rate=" << rate * 100 << "% : sampled " << shards.total_sampled()
                       << " accesses (" << std::setprecision(2) << elapsed << "s)\n";
 
             for (auto& pt : mrc) {
-                csv << rate << "," << pt.cache_size << "," << std::setprecision(6) << pt.miss_ratio << "\n";
+                csv << rate << "," << pt.cache_size << "," << std::setprecision(6) << pt.miss_ratio << ","
+                    << accesses_per_sec << "\n";
             }
         }
         csv.close();
