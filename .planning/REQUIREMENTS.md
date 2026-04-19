@@ -57,7 +57,7 @@
 - [x] **TRACE-04**: Pilot 200-request run (4 endpoints: `/dockets/`, `/opinions/`, `/clusters/`, `/courts/`) to tune ID ranges for ≥70% success rate (verified Phase 1 — 90%/74%/90%/100%)
 - [x] **TRACE-05**: Implement `scripts/collect_court_trace.py` — 0.8s + 0-0.4s jitter, backoff, 80% metadata / 20% full plain_text mix (verified Phase 3 Plan 01 — scripts/collect_court_trace.py at e9d8557, 609 lines; all 26 grep-discoverable invariants pass including D-02 minimal field set, [0,30,90] 429 ramp, 5-consec hard-stop with exact FATAL diagnostic, module-level + per-request urlparse host allowlist, --resume by endpoint-prefix classification; 10-row smoke against live CourtListener API in 14s exit 0 — actual 20K data collection is TRACE-06 / Plan 03-02)
 - [x] **TRACE-06**: Collect ≥20K-request CourtListener trace (verified Phase 3 Plan 02 — traces/court_trace.csv at f9b60de, 20,001 lines; 5,000 successful rows per endpoint per D-05; 8h 56m runtime; per-endpoint success docket 89.1% / opinion 71.5% / cluster 85.6% / court 100% all ≥70% gate; results/court/collection_report.txt committed via .gitignore D-15 exemption)
-- [ ] **TRACE-07**: Run full policy sweep (6 policies) on court trace via replay-Zipf
+- [x] **TRACE-07**: Run full policy sweep (6 policies) on court trace via replay-Zipf (verified Phase 3 Plan 03 — make run-sweep WORKLOAD=court TRACE=traces/court_trace.csv produced results/court/mrc.csv (36 rows: 6 policies × 6 cache fractions) + alpha_sensitivity.csv (42 rows: 6 policies × 7 alphas) with W-TinyLFU rows present; 5 figures regenerated via make plots WORKLOAD=court; W-TinyLFU monotonically dominates at all α on court trace, consistent with Phase 2's Congress finding)
 
 ### SHARDS large-scale validation (SHARDS-xx)
 
@@ -123,7 +123,7 @@ All 29 v1 requirements below are mapped to exactly one Milestone 2 phase. See `.
 | WTLFU-05    | Phase 2 — W-TinyLFU Core | Complete |
 | TRACE-05    | Phase 3 — CourtListener Trace Collection & Replay Sweep | Complete |
 | TRACE-06    | Phase 3 — CourtListener Trace Collection & Replay Sweep | Complete |
-| TRACE-07    | Phase 3 — CourtListener Trace Collection & Replay Sweep | Pending |
+| TRACE-07    | Phase 3 — CourtListener Trace Collection & Replay Sweep | Complete |
 | SHARDS-01   | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
 | SHARDS-02   | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
 | SHARDS-03   | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
