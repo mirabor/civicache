@@ -222,9 +222,17 @@ int main(int argc, char* argv[]) {
         }
         std::cout << "\n" << std::string(8 + 10 * policy_names.size(), '-') << "\n";
 
+        // Hoist prepare_objects out of the alpha loop: the dedupe+shuffle is
+        // stable across alpha values (D-11, REFACTOR-02). Avoids O(N) redundant
+        // work 7x per sweep. Empty when the raw_trace fallback is in use.
+        std::vector<std::pair<std::string, uint64_t>> prepared_objects;
+        if (!raw_trace.empty()) {
+            prepared_objects = prepare_objects(raw_trace);  // default seed=42
+        }
+
         for (double a : alphas) {
-            auto sweep_trace = (!raw_trace.empty())
-                ? replay_zipf(raw_trace, num_requests, a)
+            auto sweep_trace = !prepared_objects.empty()
+                ? generate_replay_trace(prepared_objects, num_requests, a)
                 : generate_zipf_trace(num_requests, num_objects, a);
             uint64_t wb = working_set_bytes(sweep_trace);
             uint64_t cache_bytes = wb / 100;
