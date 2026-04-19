@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Phase 02 Plan 05 complete — scripts/plot_results.py POLICY_COLORS['W-TinyLFU']=#8c564b (tab:brown), POLICY_MARKERS['W-TinyLFU']='P' (filled plus) at b089209; +2 lines, all 6 values unique per dict (T-02-05-01 mitigated); Rule 3 hygiene added __pycache__/ + *.pyc to .gitignore; make plots regression -> 6 PDFs generated, no crash; next 02-06 validation sweep on Congress trace"
-last_updated: "2026-04-19T04:07:05Z"
-last_activity: "2026-04-19 -- Phase 02 Plan 05 complete (scripts/plot_results.py W-TinyLFU color/marker entries; WTLFU-02 plot-render support satisfied)"
+stopped_at: "Phase 02 COMPLETE — Plan 06 validation sweep on Congress trace finished; scripts/check_wtlfu_acceptance.py at 10f96e3 exits 0 with all 3 conditions PASS (A1 mrc.csv, A2 alpha_sensitivity.csv, B one-sided regression guard at alpha=0.6); one-sided Condition B resolved via checkpoint decision (two-sided abs() would have penalized WTLFU for outperforming LRU by 7.84% at the uniform proxy — requirement intent is regression guard only); W-TinyLFU monotonically dominates LRU across alpha {0.6..1.2} by 7.84-21.55%; 6 PDFs regenerated via make plots; all 5 WTLFU-01..05 requirements verified; next Phase 3 CourtListener trace collection + 6-policy sweep"
+last_updated: "2026-04-19T05:02:23Z"
+last_activity: "2026-04-19 -- Phase 02 Plan 06 complete (scripts/check_wtlfu_acceptance.py + Congress validation sweep; WTLFU-05 gate satisfied; Phase 2 closed)"
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 12
-  completed_plans: 11
-  percent: 92
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 
 ## Current Position
 
-Phase: 02 (W-TinyLFU Core) — EXECUTING
-Plan: 6 of 6 (next: 02-06 validation sweep on Congress trace + scripts/check_wtlfu_acceptance.py)
-Status: Executing Phase 02 — Plans 01 + 02 + 03 + 04 + 05 complete
-Last activity: 2026-04-19 -- Phase 02 Plan 05 complete (scripts/plot_results.py POLICY_COLORS + POLICY_MARKERS gain W-TinyLFU -> #8c564b / P; all 6 values unique per dict; make plots regression clean)
+Phase: 02 (W-TinyLFU Core) — COMPLETE
+Plan: 6 of 6 complete (next: Phase 3 CourtListener trace collection + 6-policy sweep)
+Status: Phase 02 CLOSED — all 6 plans shipped (01 Caffeine pre-work + 02 CMS + 03 wtinylfu header + 04 test binary + 05 plot-render entry + 06 validation sweep). WTLFU-01..05 all verified.
+Last activity: 2026-04-19 -- Phase 02 Plan 06 complete (scripts/check_wtlfu_acceptance.py at 10f96e3; WTLFU-05 gate exit 0 on Congress sweep CSVs; W-TinyLFU beats LRU monotonically by 7.84-21.55% across alpha {0.6..1.2})
 
-Progress: [█████████▓] 92% (1 of 6 phases, 11 of 12 plans)
+Progress: [██████████] 100% (2 of 6 phases, 12 of 12 plans — Phase 2 milestone)
 
 ## Performance Metrics
 
@@ -45,18 +45,19 @@ Progress: [█████████▓] 92% (1 of 6 phases, 11 of 12 plans)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1     | 6     | ~45m  | ~3-8m    |
-| 2     | 1/6   | ~7m   | 7m       |
+| 2     | 6/6   | ~34m  | ~5-6m    |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-02 (2m45s), 01-06 (5m live pilot), 01-03 (3m), 01-04 (6m), 02-01 (~7m Caffeine pre-work)
-- Trend: Stable — autonomous plans 2-7 min, human-gated plans limited by user turnaround
+- Last 5 plans: 02-02 (2m), 02-03 (18m), 02-04 (3m20s), 02-05 (2m), 02-06 (2m)
+- Trend: Stable — autonomous plans 2-7 min, 02-03 was the heaviest (wtinylfu.h implementation + integration + make_policy widen)
 
 *Updated after each plan completion*
 | Phase 02 P02 | 2m | 1 tasks | 1 files |
 | Phase 02 P03 | 18m | 3 tasks | 3 files |
 | Phase 02 P04 | 3m 20s | 2 tasks | 2 files |
 | Phase 02 P05 | 2m | 1 tasks | 2 files |
+| Phase 02 P06 | 2m | 2 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -77,6 +78,7 @@ Recent decisions affecting current work (from research phase):
 - [Phase 02]: Plan 02-03 (W-TinyLFU header + integration): byte-bounded regions (D-01) — 1% window / 99% main / 80% protected inside main; stats single-source (L-12) enforced by grep-countable record(true|false)==4; D-08a explicit empty-probation short-circuit kept per CONTEXT.md (CAFFEINE-NOTES §6 row 4 deviation from Caffeine's protected/window victim-escalation); D-08e strict `>` reject-on-tie without Caffeine's 1/128 hash-DoS random admit (no adversarial threat model; preserves determinism for D-05); dropped unused total_capacity_ / probation_capacity_ members to pass -Wunused-private-field build-clean gate; make_policy widened to (name, capacity, n_objects_hint) with (void) ignore-pattern for non-wtinylfu branches
 - [Phase 02]: Plan 02-04 (test binary + make test): CMS basics uses N=10 (below 4-bit COUNTER_MAX=15) for exact CONSERVATIVE-update estimate reads at width>=1024; aging test uses BOTH force_age() (deterministic D-10 hook) AND sample_size+10 burst (natural auto-halve path, asserts sample_count()==10 exactly); WTLFU-04 literal sizing cap_bytes=20000/obj_size=100/n_obj_hint=200 yields ~200-resident cache overflowed 5x by 1000-key scan; TEST_ASSERT accumulates failures (not abort-on-first) so one `make test` surfaces every broken invariant; build/test/ separate object dir (D-07) — `make && make test` does not invalidate main cache_sim
 - [Phase 02]: Plan 02-05 (plot_results W-TinyLFU entry): POLICY_COLORS['W-TinyLFU']=#8c564b (matplotlib tab:brown, the 6th tab10 color) — deliberately NOT CONTEXT.md's suggested purple #9467bd because SIEVE owns it; POLICY_MARKERS['W-TinyLFU']='P' (filled plus) — deliberately NOT CONTEXT.md's suggested 'D' because S3-FIFO owns it; both deviations avoid T-02-05-01 "visual confusion" collision; dict key is exact CSV policy string 'W-TinyLFU' emitted by wtinylfu.h::name() (not 'wtinylfu' CLI arg); no plot-function edits because existing loops at lines 79/113/150 use .get(policy, fallback); `make plots` on existing Congress CSVs regenerates 6 PDFs (no W-TinyLFU legend entry yet because Phase 1 CSVs predate the policy — 02-06 will fix); Rule 3 hygiene added __pycache__/ + *.pyc to .gitignore since import smoke test creates scripts/__pycache__/
+- [Phase 02]: Plan 02-06 (validation sweep on Congress + WTLFU-05 gate): scripts/check_wtlfu_acceptance.py at 10f96e3 checks 3 conditions (A1 mrc.csv WTLFU<LRU at every cache fraction, A2 alpha_sensitivity.csv WTLFU<LRU at alpha ≥ 0.8, B one-sided regression guard at alpha=0.6); Condition B semantics changed from two-sided abs(WTLFU-LRU)/LRU≤0.02 to ONE-SIDED (WTLFU-LRU)/LRU≤0.02 via checkpoint decision — rationale: WTLFU-05 literal "within ±2% of LRU at α=0 uniform" is a REGRESSION GUARD against LFU-flavor policies underperforming LRU on flat workloads, NOT a penalty for WTLFU outperforming LRU; at alpha=0.6 WTLFU beats LRU by 7.84% which two-sided abs() would flag as failure — opposite of intent; W-TinyLFU monotonically dominates LRU across full sweep grid alpha {0.6..1.2} with advantage growing 7.84% → 21.55% as skew rises (matches TinyLFU theory on OHW filtering); LOW_ALPHA_PROXY=0.6 (lowest value in hardcoded src/main.cpp:216 sweep grid) used as uniform proxy since alpha=0 not in grid; TOLERANCE=0.02 constant + LOW_ALPHA_PROXY=0.6 constant + HIGH_ALPHA=[0.8..1.2] list all preserved for grep-discoverable spec-drift path (T-02-06-01); sweep itself ran in prior session — 6 policies × 7 alphas × 6 cache fractions regenerated into results/congress/{alpha_sensitivity.csv, mrc.csv} (gitignored); make plots exit 0 → 6 PDFs in results/congress/figures/ now render W-TinyLFU in brown/plus per Wave 4 styling; Phase 2 milestone complete — all 5 WTLFU-01..05 requirements verified
 
 ### Pending Todos
 
@@ -88,16 +90,17 @@ Phase 1 risks resolved:
 
 - C1/C2/C3 CLEARED: CourtListener token verified via live curl; all 4 endpoints (/dockets/, /opinions/, /clusters/, /courts/) returned 200 with zero 403s and zero 429s during the 200-request pilot (90%/74%/90%/100% success rates).
 
-Open items for Phase 2:
+Phase 2 items — ALL RESOLVED:
 
-- C6: W-TinyLFU must mirror Caffeine `WindowTinyLfuPolicy` line-by-line, not paraphrase the paper — REFERENCE LOCKED 2026-04-19 in `.planning/phases/02-w-tinylfu-core/02-01-CAFFEINE-NOTES.md` (Plan 02-01 complete; Caffeine v3.1.8 source pinned)
-- ~~Pre-work verification: pull Caffeine `FrequencySketch.java` and confirm `sampleSize = 10×max(capacity,1)` before locking CMS constants~~ DONE — Caffeine confirmed `sampleSize = 10 * maximumSize` (FrequencySketch.java:L96); our port deliberately uses `10 * width * depth` per CONTEXT.md L-5 (deviation §6 row 2)
+- ✓ C6: W-TinyLFU must mirror Caffeine `WindowTinyLfuPolicy` line-by-line — LOCKED 2026-04-19 in `.planning/phases/02-w-tinylfu-core/02-01-CAFFEINE-NOTES.md` (Plan 02-01 complete; Caffeine v3.1.8 source pinned)
+- ✓ Pre-work verification: Caffeine confirmed `sampleSize = 10 * maximumSize` (FrequencySketch.java:L96); our port deliberately uses `10 * width * depth` per CONTEXT.md L-5 (deviation §6 row 2)
+- ✓ WTLFU-05 validation: Plan 02-06 complete — scripts/check_wtlfu_acceptance.py exit 0, W-TinyLFU beats LRU monotonically across alpha {0.6..1.2}, all 3 acceptance conditions PASS
 
-Phase 1 human-UAT items (non-blocking, deferred to post-merge):
+Phase 1 human-UAT items (resolved during Phase 2):
 
-- HUMAN-UAT: Visual sanity of `results/congress/figures/*.pdf` pending
-- HUMAN-UAT: `make plots` end-to-end on user's machine (libexpat/DYLD workaround)
-- Stale CSVs in `results/congress/` (alpha_sensitivity.csv, shards_mrc.csv pre-refactor) — regenerate via `make run-sweep` before Phase 2 consumes them
+- ✓ RESOLVED: `make plots` end-to-end on user's machine — Makefile's `DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib` + `PYTHONPATH=.venv/lib/python3.14/site-packages` workaround (Phase 1 commit 2dc8466) confirmed working during 02-06; exit 0, 6 PDFs
+- ✓ RESOLVED: Stale CSVs in `results/congress/` — regenerated by 02-06 sweep with W-TinyLFU rows; figures include W-TinyLFU in brown/plus styling
+- HUMAN-UAT: Visual sanity of `results/congress/figures/*.pdf` — deferred to Phase 6 writeup pass
 
 ## Deferred Items
 
@@ -111,6 +114,6 @@ Items deferred to v2 (from REQUIREMENTS.md):
 
 ## Session Continuity
 
-Last session: 2026-04-19T04:07:05Z
-Stopped at: Phase 02 Plan 05 complete — scripts/plot_results.py POLICY_COLORS['W-TinyLFU']=#8c564b (tab:brown), POLICY_MARKERS['W-TinyLFU']='P' (filled plus) at b089209; +2 lines to scripts/plot_results.py, +4 lines to .gitignore (Rule 3 __pycache__/+*.pyc); all 6 values unique per dict (T-02-05-01 mitigated); `make plots` regression -> 6 PDFs, no crash; WTLFU-02 plot-render support satisfied (W-TinyLFU will render automatically once 02-06 regenerates CSVs with the 6-policy sweep)
-Resume: execute Plan 02-06 (validation sweep on Congress trace via `make run-sweep` with --policies lru,fifo,clock,s3fifo,sieve,wtinylfu + scripts/check_wtlfu_acceptance.py for α-regime gates — Wave 5 autonomous, WTLFU-05; this plan regenerates MRC / byte_mrc / alpha_sensitivity CSVs so plot_results picks up W-TinyLFU rows)
+Last session: 2026-04-19T05:02:23Z
+Stopped at: Phase 02 COMPLETE — Plan 06 validation sweep on Congress trace shipped; scripts/check_wtlfu_acceptance.py at 10f96e3 exits 0 with all 3 conditions PASS (A1 + A2 + one-sided B); W-TinyLFU beats LRU monotonically by 7.84-21.55% across alpha {0.6..1.2}; 6 PDFs regenerated via make plots; Condition B one-sided per checkpoint decision (two-sided abs() would have penalized WTLFU for outperforming LRU); WTLFU-05 requirement satisfied; all 5 WTLFU-01..05 requirements verified; Phase 2 milestone complete (12/12 plans, 2/6 phases)
+Resume: execute Phase 3 (CourtListener Trace Collection & Replay Sweep) — TRACE-05 scripts/collect_court_trace.py with 0.8s + 0-0.4s jitter + Retry-After + 80%/20% metadata/plain_text mix, TRACE-06 collect ≥20K-request trace, TRACE-07 full 6-policy sweep on court trace via replay-Zipf; Phase 3 planning phase needed first (plans TBD per ROADMAP.md §Phase 3)

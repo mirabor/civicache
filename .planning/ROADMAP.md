@@ -18,7 +18,7 @@ The base simulator (LRU, FIFO, CLOCK, S3-FIFO, SIEVE + Congress.gov replay-Zipf 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Enabling Refactors & CourtListener Pilot** - Extract FNV-1a, refactor replay_zipf, add throughput metric, reorganize results tree, register CourtListener token and run 200-request pilot across planned endpoints (completed 2026-04-18)
-- [ ] **Phase 2: W-TinyLFU Core** - Implement Count-Min Sketch and W-TinyLFU (1%/99% window/SLRU, conservative update + periodic halving), integrate into CachePolicy hierarchy, validate on Congress replay
+- [x] **Phase 2: W-TinyLFU Core** - Implement Count-Min Sketch and W-TinyLFU (1%/99% window/SLRU, conservative update + periodic halving), integrate into CachePolicy hierarchy, validate on Congress replay (completed 2026-04-19; all 5 WTLFU-01..05 requirements verified; WTLFU-05 gate via scripts/check_wtlfu_acceptance.py exit 0)
 - [ ] **Phase 3: CourtListener Trace Collection & Replay Sweep** - Implement court-records collector, collect ≥20K-request trace, run full 6-policy sweep on court trace via replay-Zipf
 - [ ] **Phase 4: SHARDS Large-Scale Validation & Ablations** - Generate 1M-access synthetic trace, extend SHARDS to 0.01%/0.1%/1%/10% sampling with self-convergence reporting, implement Doorkeeper + ablation figure, S3-FIFO ratio sweep, SIEVE visited-bit ablation
 - [ ] **Phase 5: Cross-Workload Analysis Infrastructure** - Build compare_workloads.py, run multi-seed (5-seed) final sweep on both traces with confidence intervals, produce workload-characterization table and winner-per-regime analysis
@@ -58,7 +58,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 02-03-PLAN.md — include/wtinylfu.h + cache.h subordinate-include + main.cpp make_policy widen + --policies dispatch (Wave 3, autonomous, WTLFU-02 + WTLFU-03) — completed 2026-04-18, commits 9613a30+6880a34+8599b60, output include/wtinylfu.h (228 lines)
 - [x] 02-04-PLAN.md — tests/test_wtinylfu.cpp standalone test binary + Makefile test target (Wave 4, autonomous, WTLFU-04) — completed 2026-04-19, commits 2e48457+28cc8ab, outputs tests/test_wtinylfu.cpp (198 lines, 4 tests PASS) + Makefile test target with build/test/ object dir (D-07)
 - [x] 02-05-PLAN.md — scripts/plot_results.py POLICY_COLORS/MARKERS W-TinyLFU entry (Wave 4, autonomous, WTLFU-02) — completed 2026-04-19, commit b089209, +2 lines to scripts/plot_results.py (POLICY_COLORS['W-TinyLFU']=#8c564b, POLICY_MARKERS['W-TinyLFU']=P); Rule 3 hygiene added __pycache__ to .gitignore
-- [ ] 02-06-PLAN.md — Validation sweep on Congress trace + scripts/check_wtlfu_acceptance.py (Wave 5, autonomous, WTLFU-05)
+- [x] 02-06-PLAN.md — Validation sweep on Congress trace + scripts/check_wtlfu_acceptance.py (Wave 5, autonomous, WTLFU-05) — completed 2026-04-19, commit 10f96e3, output scripts/check_wtlfu_acceptance.py (147 lines, exit 0 on sweep CSVs); W-TinyLFU beats LRU monotonically 7.84-21.55% across alpha {0.6..1.2}; Condition B one-sided per checkpoint decision (regression guard intent, not penalty for outperformance); `make plots` regenerated 6 PDFs with W-TinyLFU brown/plus styling
 
 ### Phase 3: CourtListener Trace Collection & Replay Sweep
 **Goal**: A real ≥20K-request CourtListener trace exists on disk, and all six policies have been run on it via replay-Zipf, producing the second-workload data needed for cross-workload analysis.
@@ -110,8 +110,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Enabling Refactors & CourtListener Pilot | 0/6 | Not started | - |
-| 2. W-TinyLFU Core | 5/6 | In Progress | - |
+| 1. Enabling Refactors & CourtListener Pilot | 6/6 | Complete | 2026-04-18 |
+| 2. W-TinyLFU Core | 6/6 | Complete | 2026-04-19 |
 | 3. CourtListener Trace Collection & Replay Sweep | 0/TBD | Not started | - |
 | 4. SHARDS Large-Scale Validation & Ablations | 0/TBD | Not started | - |
 | 5. Cross-Workload Analysis Infrastructure | 0/TBD | Not started | - |

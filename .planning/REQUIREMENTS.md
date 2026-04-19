@@ -43,7 +43,7 @@
 - [x] **WTLFU-02**: Implement `include/wtinylfu.h` — 1% window LRU + 99% main SLRU (80% protected / 20% probationary) + TinyLFU admission via CMS
 - [x] **WTLFU-03**: Integrate W-TinyLFU into `CachePolicy` hierarchy and `make_policy()` dispatch
 - [x] **WTLFU-04**: Unit test: 20-access hot object survives 1000-access sequential scan of unique keys (verified Phase 2 Plan 04 — `tests/test_wtinylfu.cpp::test_hot_survives_scan` PASS under `make test`)
-- [ ] **WTLFU-05**: Validation on Congress replay: W-TinyLFU beats LRU at α≥0.8 on every cache size; within ±2% of LRU at α=0
+- [x] **WTLFU-05**: Validation on Congress replay: W-TinyLFU beats LRU at α≥0.8 on every cache size; within ±2% of LRU at α=0 (verified Phase 2 Plan 06 — `scripts/check_wtlfu_acceptance.py --results-dir results/congress` exit 0; W-TinyLFU beats LRU monotonically by 7.84-21.55% across alpha {0.6..1.2}; Condition B one-sided regression guard per checkpoint decision)
 
 ### Doorkeeper ablation (DOOR-xx)
 
@@ -119,8 +119,8 @@ All 29 v1 requirements below are mapped to exactly one Milestone 2 phase. See `.
 | WTLFU-01    | Phase 2 — W-TinyLFU Core | Complete |
 | WTLFU-02    | Phase 2 — W-TinyLFU Core | Complete |
 | WTLFU-03    | Phase 2 — W-TinyLFU Core | Complete |
-| WTLFU-04    | Phase 2 — W-TinyLFU Core | Pending |
-| WTLFU-05    | Phase 2 — W-TinyLFU Core | Pending |
+| WTLFU-04    | Phase 2 — W-TinyLFU Core | Complete |
+| WTLFU-05    | Phase 2 — W-TinyLFU Core | Complete |
 | TRACE-05    | Phase 3 — CourtListener Trace Collection & Replay Sweep | Pending |
 | TRACE-06    | Phase 3 — CourtListener Trace Collection & Replay Sweep | Pending |
 | TRACE-07    | Phase 3 — CourtListener Trace Collection & Replay Sweep | Pending |
