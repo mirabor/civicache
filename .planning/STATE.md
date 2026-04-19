@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Phase 1 complete (verifier: human_needed, user approved); 6 requirements satisfied (REFACTOR-01..04, TRACE-03, TRACE-04); build clean under -Wall -Wextra; CourtListener pilot ALL PASS"
-last_updated: "2026-04-19T03:20:29.108Z"
-last_activity: 2026-04-19 -- Phase 02 planning complete
+stopped_at: "Phase 02 Plan 01 complete — Caffeine v3.1.8 reference notes locked at .planning/phases/02-w-tinylfu-core/02-01-CAFFEINE-NOTES.md (549 lines, 6 deliberate deviations documented); 02-02 (CMS) and 02-03 (W-TinyLFU) unblocked"
+last_updated: "2026-04-19T03:37:19Z"
+last_activity: 2026-04-19 -- Phase 02 Plan 01 complete (Caffeine pre-work)
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 12
-  completed_plans: 6
-  percent: 50
+  completed_plans: 7
+  percent: 58
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A defensible, well-analyzed comparison of cache eviction policies on real legislative + judicial API workloads, delivered as a submission-ready paper + code + AI-use report + live demo.
-**Current focus:** Phase 2 — W-TinyLFU Core (Phase 1 complete)
+**Current focus:** Phase 02 — W-TinyLFU Core
 
 ## Current Position
 
-Phase: 2 of 6 (W-TinyLFU Core)
-Plan: Not yet planned
-Status: Ready to execute
-Last activity: 2026-04-19 -- Phase 02 planning complete
+Phase: 02 (W-TinyLFU Core) — EXECUTING
+Plan: 2 of 6 (next: 02-02 count_min_sketch.h)
+Status: Executing Phase 02 — Plan 01 complete
+Last activity: 2026-04-19 -- Phase 02 Plan 01 complete (Caffeine pre-work)
 
-Progress: [██░░░░░░░░] 17% (1 of 6 phases)
+Progress: [█████░░░░░] 58% (1 of 6 phases, 7 of 12 plans)
 
 ## Performance Metrics
 
@@ -45,11 +45,12 @@ Progress: [██░░░░░░░░] 17% (1 of 6 phases)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1     | 6     | ~45m  | ~3-8m    |
+| 2     | 1/6   | ~7m   | 7m       |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01 (2m25s), 01-02 (2m45s), 01-06 (5m live pilot), 01-03 (3m), 01-04 (6m)
-- Trend: Stable — autonomous plans 2-6 min, human-gated plans limited by user turnaround
+- Last 5 plans: 01-02 (2m45s), 01-06 (5m live pilot), 01-03 (3m), 01-04 (6m), 02-01 (~7m Caffeine pre-work)
+- Trend: Stable — autonomous plans 2-7 min, human-gated plans limited by user turnaround
 
 *Updated after each plan completion*
 
@@ -67,6 +68,7 @@ Recent decisions affecting current work (from research phase):
 - `std::hash` banned — FNV-1a extracted to `include/hash_util.h` with 4 seeds
 - Hill-climbing W-TinyLFU explicitly omitted (static 1%/99% config)
 - Writeup budget ≥1 week; demo last, tested 3+ times on target laptop
+- **Phase 02 Plan 01 (Caffeine pre-work):** Caffeine v3.1.8 confirmed to use STANDARD update in `FrequencySketch.increment` (FrequencySketch.java:L161-L164); our port DELIBERATELY uses CONSERVATIVE per WTLFU-01. 6 deliberate deviations documented in `.planning/phases/02-w-tinylfu-core/02-01-CAFFEINE-NOTES.md` §6. Plans 02-02 + 02-03 unblocked.
 
 ### Pending Todos
 
@@ -80,8 +82,8 @@ Phase 1 risks resolved:
 
 Open items for Phase 2:
 
-- C6: W-TinyLFU must mirror Caffeine `WindowTinyLfuPolicy` line-by-line, not paraphrase the paper
-- Pre-work verification: pull Caffeine `FrequencySketch.java` and confirm `sampleSize = 10×max(capacity,1)` before locking CMS constants
+- C6: W-TinyLFU must mirror Caffeine `WindowTinyLfuPolicy` line-by-line, not paraphrase the paper — REFERENCE LOCKED 2026-04-19 in `.planning/phases/02-w-tinylfu-core/02-01-CAFFEINE-NOTES.md` (Plan 02-01 complete; Caffeine v3.1.8 source pinned)
+- ~~Pre-work verification: pull Caffeine `FrequencySketch.java` and confirm `sampleSize = 10×max(capacity,1)` before locking CMS constants~~ DONE — Caffeine confirmed `sampleSize = 10 * maximumSize` (FrequencySketch.java:L96); our port deliberately uses `10 * width * depth` per CONTEXT.md L-5 (deviation §6 row 2)
 
 Phase 1 human-UAT items (non-blocking, deferred to post-merge):
 
@@ -102,5 +104,5 @@ Items deferred to v2 (from REQUIREMENTS.md):
 ## Session Continuity
 
 Last session: 2026-04-18 → 2026-04-19
-Stopped at: Phase 1 complete (verifier: human_needed, user approved); 6 requirements satisfied (REFACTOR-01..04, TRACE-03, TRACE-04); build clean under -Wall -Wextra; CourtListener pilot ALL PASS
-Resume: run `/gsd-discuss-phase 2` (recommended — W-TinyLFU has several gray areas) or `/gsd-plan-phase 2` if ready to plan directly
+Stopped at: Phase 02 Plan 01 complete — Caffeine v3.1.8 reference notes locked (.planning/phases/02-w-tinylfu-core/02-01-CAFFEINE-NOTES.md, 549 lines, 6 deliberate deviations documented); BLOCKING gate cleared; 02-02 (CMS) and 02-03 (W-TinyLFU) unblocked
+Resume: execute Plan 02-02 (`include/count_min_sketch.h` — 4-bit packed CMS, depth=4, width=nextpow2, FNV-1a seeded, periodic halving, CONSERVATIVE update locked by WTLFU-01)

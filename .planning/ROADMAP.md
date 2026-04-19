@@ -53,7 +53,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Unit test passes: a 20-access hot object survives a subsequent 1000-access sequential scan of unique keys
   4. W-TinyLFU beats LRU at α≥0.8 across every cache size on Congress replay-Zipf; W-TinyLFU is within ±2% of LRU at α=0 (uniform)
 **Plans**: 6 plans across 5 execution waves
-- [ ] 02-01-PLAN.md — Caffeine v3.x pre-work: pull FrequencySketch.java + BoundedLocalCache.java, lock CMS update rule + D-08a..D-08e edge-case rules (Wave 1, BLOCKING, autonomous)
+- [x] 02-01-PLAN.md — Caffeine v3.x pre-work: pull FrequencySketch.java + BoundedLocalCache.java, lock CMS update rule + D-08a..D-08e edge-case rules (Wave 1, BLOCKING, autonomous) — completed 2026-04-19, commit 665c767, output `.planning/phases/02-w-tinylfu-core/02-01-CAFFEINE-NOTES.md` (549 lines, 6 deviations documented)
 - [ ] 02-02-PLAN.md — include/count_min_sketch.h: 4-bit packed CMS, depth=4, width=nextpow2, FNV-1a seeded, periodic halving (Wave 2, autonomous, WTLFU-01)
 - [ ] 02-03-PLAN.md — include/wtinylfu.h + cache.h subordinate-include + main.cpp make_policy widen + --policies dispatch (Wave 3, autonomous, WTLFU-02 + WTLFU-03)
 - [ ] 02-04-PLAN.md — tests/test_wtinylfu.cpp standalone test binary + Makefile test target (Wave 4, autonomous, WTLFU-04)
