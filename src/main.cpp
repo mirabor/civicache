@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
     {
         std::string csv_path = output_dir + "/mrc.csv";
         std::ofstream csv(csv_path);
-        csv << "cache_frac,cache_size_bytes,policy,miss_ratio,byte_miss_ratio\n";
+        csv << "cache_frac,cache_size_bytes,policy,miss_ratio,byte_miss_ratio,accesses_per_sec\n";
 
         // Table header
         std::cout << std::setw(12) << "Cache%";
@@ -194,10 +194,16 @@ int main(int argc, char* argv[]) {
                     std::cerr << "Unknown policy: " << pn << "\n";
                     continue;
                 }
+                auto t_start = std::chrono::steady_clock::now();
                 run_simulation(trace, *p);
+                auto t_end = std::chrono::steady_clock::now();
+                double elapsed = std::chrono::duration<double>(t_end - t_start).count();
+                double accesses_per_sec = elapsed > 0 ? (double)trace.size() / elapsed : 0.0;
+
                 std::cout << std::setw(10) << std::setprecision(4) << p->stats.miss_ratio();
                 csv << frac << "," << cache_bytes << "," << p->name() << ","
-                    << p->stats.miss_ratio() << "," << p->stats.byte_miss_ratio() << "\n";
+                    << p->stats.miss_ratio() << "," << p->stats.byte_miss_ratio() << ","
+                    << accesses_per_sec << "\n";
             }
             std::cout << "\n";
         }
@@ -210,7 +216,7 @@ int main(int argc, char* argv[]) {
         std::vector<double> alphas = {0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2};
         std::string csv_path = output_dir + "/alpha_sensitivity.csv";
         std::ofstream csv(csv_path);
-        csv << "alpha,policy,miss_ratio,byte_miss_ratio\n";
+        csv << "alpha,policy,miss_ratio,byte_miss_ratio,accesses_per_sec\n";
 
         std::cout << "Alpha Sensitivity (cache = 1% of working set)\n";
         std::cout << std::setw(8) << "Alpha";
@@ -240,10 +246,16 @@ int main(int argc, char* argv[]) {
             std::cout << std::setw(6) << std::setprecision(1) << a;
             for (auto& pn : policy_names) {
                 auto p = make_policy(pn, cache_bytes);
+                auto t_start = std::chrono::steady_clock::now();
                 run_simulation(sweep_trace, *p);
+                auto t_end = std::chrono::steady_clock::now();
+                double elapsed = std::chrono::duration<double>(t_end - t_start).count();
+                double accesses_per_sec = elapsed > 0 ? (double)sweep_trace.size() / elapsed : 0.0;
+
                 std::cout << std::setw(10) << std::setprecision(4) << p->stats.miss_ratio();
                 csv << a << "," << p->name() << ","
-                    << p->stats.miss_ratio() << "," << p->stats.byte_miss_ratio() << "\n";
+                    << p->stats.miss_ratio() << "," << p->stats.byte_miss_ratio() << ","
+                    << accesses_per_sec << "\n";
             }
             std::cout << "\n";
         }
