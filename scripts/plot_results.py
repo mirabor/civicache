@@ -232,10 +232,10 @@ def plot_shards(results_dir, figures_dir):
     print(f"  Saved {out}")
 
 
-def plot_workload(traces_dir, figures_dir):
+def plot_workload(traces_dir, figures_dir, workload="congress"):
     """Size distribution histogram and endpoint type breakdown."""
     # Look for the trace CSV
-    trace_path = os.path.join(traces_dir, "congress_trace.csv")
+    trace_path = os.path.join(traces_dir, f"{workload}_trace.csv")
     if not os.path.exists(trace_path):
         print(f"  Skipping workload plot: {trace_path} not found")
         return
@@ -314,23 +314,30 @@ def plot_shards_error(results_dir, figures_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="Plot cache simulation results")
-    parser.add_argument("--results-dir", default="results",
-                        help="Directory containing CSV outputs")
+    parser.add_argument("--workload", default="congress",
+                        help="Workload subdir under results/ (default: congress)")
+    parser.add_argument("--results-dir", default=None,
+                        help="Directory containing CSV outputs "
+                             "(overrides --workload-derived path)")
     parser.add_argument("--traces-dir", default="traces",
                         help="Directory containing raw trace CSVs")
     args = parser.parse_args()
 
-    figures_dir = os.path.join(args.results_dir, "figures")
+    # Derive results_dir from --workload unless --results-dir is passed
+    # explicitly (D-05 back-compat).
+    results_dir = args.results_dir or os.path.join("results", args.workload)
+
+    figures_dir = os.path.join(results_dir, "figures")
     os.makedirs(figures_dir, exist_ok=True)
 
-    print("Generating figures...")
-    plot_mrc(args.results_dir, figures_dir)
-    plot_byte_mrc(args.results_dir, figures_dir)
-    plot_alpha_sensitivity(args.results_dir, figures_dir)
-    plot_ohw(args.results_dir, figures_dir)
-    plot_shards(args.results_dir, figures_dir)
-    plot_shards_error(args.results_dir, figures_dir)
-    plot_workload(args.traces_dir, figures_dir)
+    print(f"Generating figures for workload '{args.workload}' from {results_dir}...")
+    plot_mrc(results_dir, figures_dir)
+    plot_byte_mrc(results_dir, figures_dir)
+    plot_alpha_sensitivity(results_dir, figures_dir)
+    plot_ohw(results_dir, figures_dir)
+    plot_shards(results_dir, figures_dir)
+    plot_shards_error(results_dir, figures_dir)
+    plot_workload(args.traces_dir, figures_dir, args.workload)
     print("Done.")
 
 
