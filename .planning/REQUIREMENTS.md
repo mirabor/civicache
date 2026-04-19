@@ -42,7 +42,7 @@
 - [x] **WTLFU-01**: Implement `include/count_min_sketch.h` — 4-bit counters, depth=4, width=nextpow2(capacity-objects), conservative update, periodic halving every 10×W accesses
 - [x] **WTLFU-02**: Implement `include/wtinylfu.h` — 1% window LRU + 99% main SLRU (80% protected / 20% probationary) + TinyLFU admission via CMS
 - [x] **WTLFU-03**: Integrate W-TinyLFU into `CachePolicy` hierarchy and `make_policy()` dispatch
-- [ ] **WTLFU-04**: Unit test: 20-access hot object survives 1000-access sequential scan of unique keys
+- [x] **WTLFU-04**: Unit test: 20-access hot object survives 1000-access sequential scan of unique keys (verified Phase 2 Plan 04 — `tests/test_wtinylfu.cpp::test_hot_survives_scan` PASS under `make test`)
 - [ ] **WTLFU-05**: Validation on Congress replay: W-TinyLFU beats LRU at α≥0.8 on every cache size; within ±2% of LRU at α=0
 
 ### Doorkeeper ablation (DOOR-xx)
