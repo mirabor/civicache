@@ -35,7 +35,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `replay_zipf` accepts a pre-shuffled object list; a 7-alpha sweep on the Congress trace completes noticeably faster than the prior regeneration-per-alpha baseline
   3. Simulator CSV output contains a new `accesses_per_sec` column; `results/` is reorganized into `{congress, court, shards_large, compare}/` subdirectories
   4. `COURTLISTENER_API_KEY` is configured and a 200-request pilot across `/dockets/`, `/opinions/`, `/clusters/`, `/courts/` returns ≥70% success with no 403s from gated endpoints
-**Plans**: TBD
+**Plans**: 6 plans across 4 execution waves
+- [ ] 01-01-PLAN.md — Extract FNV-1a into include/hash_util.h with 4 seeds + self-test (Wave 1, autonomous, REFACTOR-01)
+- [ ] 01-02-PLAN.md — Split replay_zipf into prepare_objects + generate_replay_trace; hoist out of alpha sweep (Wave 2, autonomous, REFACTOR-02)
+- [ ] 01-03-PLAN.md — Add accesses_per_sec column to mrc/alpha/shards CSVs; plot_results tolerance (Wave 3, autonomous, REFACTOR-03)
+- [ ] 01-04-PLAN.md — Reorganize results/ into per-workload subdirs; add --workload flag; update Makefile (Wave 4, autonomous, REFACTOR-04)
+- [ ] 01-05-PLAN.md — Register CourtListener account, configure COURTLISTENER_API_KEY, verify via curl (Wave 1, checkpoint, TRACE-03)
+- [ ] 01-06-PLAN.md — Build scripts/pilot_court_trace.py, run 200-request pilot, enforce ≥70% gate (Wave 2, autonomous, TRACE-04)
 
 ### Phase 2: W-TinyLFU Core
 **Goal**: A working, validated W-TinyLFU policy plugged into the existing CachePolicy hierarchy — correct behavior on the "hot object survives scan" invariant and the expected α-regime relationship to LRU on Congress replay.
@@ -98,7 +104,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Enabling Refactors & CourtListener Pilot | 0/TBD | Not started | - |
+| 1. Enabling Refactors & CourtListener Pilot | 0/6 | Not started | - |
 | 2. W-TinyLFU Core | 0/TBD | Not started | - |
 | 3. CourtListener Trace Collection & Replay Sweep | 0/TBD | Not started | - |
 | 4. SHARDS Large-Scale Validation & Ablations | 0/TBD | Not started | - |
