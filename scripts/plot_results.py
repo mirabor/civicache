@@ -6,6 +6,20 @@ Reads from results/ and writes PDFs to results/figures/.
 Usage: python3 scripts/plot_results.py [--results-dir results]
 """
 
+# CSV schemas (kept in sync with src/main.cpp):
+#   mrc.csv:              cache_frac, cache_size_bytes, policy, miss_ratio,
+#                         byte_miss_ratio, accesses_per_sec
+#   alpha_sensitivity.csv: alpha, policy, miss_ratio, byte_miss_ratio,
+#                         accesses_per_sec
+#   shards_mrc.csv:       sampling_rate, cache_size_objects, miss_ratio,
+#                         accesses_per_sec
+#   one_hit_wonder.csv:   window_frac, ohw_ratio
+#   exact_mrc.csv:        cache_size_objects, miss_ratio
+#   shards_error.csv:     sampling_rate, mae, max_abs_error, num_points
+# Readers below tolerate older CSVs that lack accesses_per_sec (REFACTOR-03):
+# the column is used only if present; existing miss-ratio plots do not depend
+# on it. Throughput/Pareto plots are deferred to Phase 5 (ANAL-01).
+
 import argparse
 import os
 import sys
@@ -43,6 +57,11 @@ POLICY_MARKERS = {
     "S3-FIFO": "D",
     "SIEVE": "v",
 }
+
+
+def _has_throughput(df):
+    """True if the DataFrame carries the accesses_per_sec column."""
+    return "accesses_per_sec" in df.columns
 
 
 def plot_mrc(results_dir, figures_dir):
