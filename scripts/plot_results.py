@@ -314,6 +314,98 @@ def plot_shards_error(results_dir, figures_dir):
     print(f"  Saved {out}")
 
 
+def plot_shards_convergence(results_dir, figures_dir):
+    """SHARDS self-convergence MAE vs. compared rate (D-01/D-02). Annotates
+    n_samples_compared and flags <200 with asterisk per D-01 caveat."""
+    path = os.path.join(results_dir, "shards_convergence.csv")
+    if not os.path.exists(path):
+        return  # silently skip — only exists after `make shards-large`
+    df = pd.read_csv(path).sort_values("compared_rate")
+    if df.empty:
+        return
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.plot(df["compared_rate"] * 100, df["mae"],
+            marker="o", color="#1f77b4", linewidth=1.5, markersize=7)
+    for _, row in df.iterrows():
+        n = int(row["n_samples_compared"])
+        label = f"n={n}"
+        if n < 200:
+            label += "*"  # D-01 caveat: below paper-recommended 200-sample floor
+        ax.annotate(label,
+                    xy=(row["compared_rate"] * 100, row["mae"]),
+                    xytext=(0, 10), textcoords="offset points",
+                    ha="center", fontsize=9)
+    ax.set_xscale("log")
+    ax.set_xlabel("Compared Sampling Rate (%, log scale)")
+    ax.set_ylabel(f"MAE vs. {df['reference_rate'].iloc[0] * 100:.0f}% reference")
+    ax.set_title("SHARDS Self-Convergence at 1M Accesses")
+    ax.set_ylim(bottom=0)
+    # Add a small footnote about the caveat marker if any rate triggers it
+    if (df["n_samples_compared"] < 200).any():
+        fig.text(0.5, -0.02,
+                 "* compared rate below paper-recommended 200-sample floor (D-01)",
+                 ha="center", fontsize=8, style="italic")
+
+    out = os.path.join(figures_dir, "shards_convergence.pdf")
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {out}")
+
+
+def plot_shards_mrc_overlay(results_dir, figures_dir):
+    """PITFALLS M3 money-shot: SHARDS approximations overlaid on exact MRC.
+    Reads shards_mrc.csv (1M-scale, 4 rates) + exact_mrc.csv (50K oracle) +
+    shards_mrc_50k.csv (50K SHARDS, for the oracle-regime overlay).
+    """
+    shards_path = os.path.join(results_dir, "shards_mrc.csv")
+    exact_path = os.path.join(results_dir, "exact_mrc.csv")
+    if not os.path.exists(shards_path):
+        return  # only exists after `make shards-large`
+
+    shards_df = pd.read_csv(shards_path)
+    exact_df = pd.read_csv(exact_path) if os.path.exists(exact_path) else None
+    shards50k_path = os.path.join(results_dir, "shards_mrc_50k.csv")
+    shards50k_df = pd.read_csv(shards50k_path) if os.path.exists(shards50k_path) else None
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    # Exact MRC (50K oracle) — solid black baseline
+    if exact_df is not None:
+        exact_col = "cache_size_objects" if "cache_size_objects" in exact_df.columns else "cache_size"
+        ax.plot(exact_df[exact_col], exact_df["miss_ratio"],
+                color="black", linewidth=2.0, label="Exact MRC (50K oracle)",
+                linestyle="-", zorder=10)
+
+    # 50K SHARDS overlays — dotted lines, thin/transparent to distinguish from 1M
+    if shards50k_df is not None:
+        size_col50 = "cache_size_objects" if "cache_size_objects" in shards50k_df.columns else "cache_size"
+        for rate in sorted(shards50k_df["sampling_rate"].unique()):
+            sub = shards50k_df[shards50k_df["sampling_rate"] == rate].sort_values(size_col50)
+            ax.plot(sub[size_col50], sub["miss_ratio"],
+                    linestyle=":", linewidth=1.0, alpha=0.5,
+                    label=f"SHARDS {rate*100:g}% (50K)")
+
+    # 1M SHARDS overlays — dashed lines, full opacity
+    size_col = "cache_size_objects" if "cache_size_objects" in shards_df.columns else "cache_size"
+    for rate in sorted(shards_df["sampling_rate"].unique()):
+        sub = shards_df[shards_df["sampling_rate"] == rate].sort_values(size_col)
+        ax.plot(sub[size_col], sub["miss_ratio"],
+                linestyle="--", linewidth=1.5,
+                label=f"SHARDS {rate*100:g}% (1M)")
+
+    ax.set_xlabel("Cache Size (objects)")
+    ax.set_ylabel("Miss Ratio")
+    ax.set_title("SHARDS Approximation vs. Exact MRC")
+    ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=9)
+    ax.set_ylim(bottom=0)
+
+    out = os.path.join(figures_dir, "shards_mrc_overlay.pdf")
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {out}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Plot cache simulation results")
     parser.add_argument("--workload", default="congress",
@@ -339,6 +431,8 @@ def main():
     plot_ohw(results_dir, figures_dir)
     plot_shards(results_dir, figures_dir)
     plot_shards_error(results_dir, figures_dir)
+    plot_shards_convergence(results_dir, figures_dir)
+    plot_shards_mrc_overlay(results_dir, figures_dir)
     plot_workload(args.traces_dir, figures_dir, args.workload)
     print("Done.")
 
