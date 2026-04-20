@@ -49,6 +49,13 @@ POLICY_COLORS = {
     "S3-FIFO": "#d62728",
     "SIEVE": "#9467bd",
     "W-TinyLFU": "#8c564b",
+    # Phase 4 Axis C (D-11 / ABLA-01) — S3-FIFO small-queue-ratio ablation.
+    # Sequential red family so the 3 variants read as related on the ablation
+    # figure. S3-FIFO-10 reuses the legacy S3-FIFO hex so the ablation panel
+    # is visually consistent with the main MRC/alpha figures.
+    "S3-FIFO-5":  "#ff7f7f",  # lighter red (lower small-queue ratio)
+    "S3-FIFO-10": "#d62728",  # matches legacy "S3-FIFO" — the default alias
+    "S3-FIFO-20": "#8b0000",  # darker red (higher small-queue ratio)
 }
 
 POLICY_MARKERS = {
@@ -58,6 +65,12 @@ POLICY_MARKERS = {
     "S3-FIFO": "D",
     "SIEVE": "v",
     "W-TinyLFU": "P",
+    # Phase 4 Axis C — distinguishable markers for the 3 S3-FIFO variants.
+    # S3-FIFO-10 reuses the legacy "D" so the ablation's baseline rate reads
+    # identically to the main-figure S3-FIFO line.
+    "S3-FIFO-5":  "<",
+    "S3-FIFO-10": "D",
+    "S3-FIFO-20": ">",
 }
 
 
@@ -406,6 +419,67 @@ def plot_shards_mrc_overlay(results_dir, figures_dir):
     print(f"  Saved {out}")
 
 
+def plot_ablation_s3fifo(figures_dir, congress_dir="results/congress",
+                          court_dir="results/court"):
+    """S3-FIFO small-queue-ratio ablation figure (D-11 / ABLA-01).
+
+    2-workload-panel grid sharing y-axis: Congress | Court. Each panel plots
+    miss_ratio vs. Zipf alpha for the 3 small_frac variants (S3-FIFO-5,
+    S3-FIFO-10, S3-FIFO-20) at fixed 1% cache (D-13, via the simulator's
+    --alpha-sweep code path that hardcodes wb/100 at src/main.cpp alpha loop).
+
+    Reads results/{congress,court}/ablation_s3fifo.csv produced by
+    `make ablation-s3fifo`. Both CSVs must exist for the figure to render;
+    if either is missing the function silently skips (standard Phase 4 plot
+    convention — lets `make plots` run standalone after partial sweeps).
+
+    Writes results/<workload>/figures/ablation_s3fifo.pdf. Because the
+    existing `make plots` pipeline derives `figures_dir` from `--workload`,
+    this function is called once per invocation — the figure content is
+    identical across workload invocations (same data, same renderer) but
+    the PDF is written into each per-workload figures_dir so either
+    workload's figure set is self-contained.
+    """
+    cong_path = os.path.join(congress_dir, "ablation_s3fifo.csv")
+    court_path = os.path.join(court_dir, "ablation_s3fifo.csv")
+    if not (os.path.exists(cong_path) and os.path.exists(court_path)):
+        print(f"  Skipping S3-FIFO ablation plot: both "
+              f"{cong_path} and {court_path} required")
+        return
+
+    c_df = pd.read_csv(cong_path); c_df["workload"] = "Congress"
+    k_df = pd.read_csv(court_path); k_df["workload"] = "Court"
+    df = pd.concat([c_df, k_df], ignore_index=True)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5), sharey=True)
+    for ax, wl in zip([ax1, ax2], ["Congress", "Court"]):
+        sub_all = df[df["workload"] == wl]
+        # Sort policies so the legend order is 5 -> 10 -> 20 rather than
+        # lexicographic (which would put 10 before 5 due to string sort).
+        policies_sorted = sorted(
+            sub_all["policy"].unique(),
+            key=lambda p: int(p.split("-")[-1]) if p.split("-")[-1].isdigit() else 0,
+        )
+        for policy in policies_sorted:
+            sub = sub_all[sub_all["policy"] == policy].sort_values("alpha")
+            color = POLICY_COLORS.get(policy, "gray")
+            marker = POLICY_MARKERS.get(policy, "x")
+            ax.plot(sub["alpha"], sub["miss_ratio"],
+                    marker=marker, markersize=5, label=policy,
+                    color=color, linewidth=1.5)
+        ax.set_xlabel("Zipf Alpha")
+        ax.set_title(wl)
+        ax.set_ylim(bottom=0)
+    ax1.set_ylabel("Miss Ratio (1% cache)")
+    ax2.legend(bbox_to_anchor=(1.02, 1), loc="upper left", title="small_frac")
+    fig.suptitle("S3-FIFO small-queue-ratio sensitivity (D-11 / ABLA-01)")
+
+    out = os.path.join(figures_dir, "ablation_s3fifo.pdf")
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {out}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Plot cache simulation results")
     parser.add_argument("--workload", default="congress",
@@ -433,6 +507,12 @@ def main():
     plot_shards_error(results_dir, figures_dir)
     plot_shards_convergence(results_dir, figures_dir)
     plot_shards_mrc_overlay(results_dir, figures_dir)
+    # Phase 4 ablation figures: 2-workload panel layouts. Each reads both
+    # Congress + Court ablation CSVs and writes into the current workload's
+    # figures_dir, so `make plots WORKLOAD=congress` and `make plots
+    # WORKLOAD=court` each refresh their own copy. Silently skipped when
+    # either source CSV is missing.
+    plot_ablation_s3fifo(figures_dir)
     plot_workload(args.traces_dir, figures_dir, args.workload)
     print("Done.")
 
