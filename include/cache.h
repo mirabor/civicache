@@ -387,17 +387,30 @@ class SIEVECache : public CachePolicy {
     std::unordered_map<std::string, std::list<Node>::iterator> map_;
     std::list<Node>::iterator hand_;
     bool hand_valid_ = false;
+    // Phase 4 Axis D (D-12 / ABLA-02): SIEVE visited-bit ablation. When
+    // promote_on_hit_ is true (Phase 1 default), the access() hit-path sets
+    // visited=true exactly as before → bit-identical to pre-Phase-4 outputs.
+    // When false (the `sieve-noprom` variant), the set is skipped; every
+    // entry's visited bit stays false from insertion (line 409 inserts with
+    // visited=false) and evict_one()'s hand finds its first target on the
+    // first sweep → SIEVE collapses to FIFO-with-hand. The gap between the
+    // two variants at high skew IS the measured value of lazy promotion.
+    bool promote_on_hit_;
+    std::string name_;
 
 public:
-    SIEVECache(uint64_t capacity) : capacity_(capacity) {}
-    
+    SIEVECache(uint64_t capacity, bool promote_on_hit = true)
+        : capacity_(capacity),
+          promote_on_hit_(promote_on_hit),
+          name_(promote_on_hit ? "SIEVE" : "SIEVE-NoProm") {}
+
     bool access(const std::string& key, uint64_t size) override {
         auto it = map_.find(key);
         if (it != map_.end()) {
             current_size_ -= it->second->size;
             it->second->size = size;
             current_size_ += size;
-            it->second->visited = true;
+            if (promote_on_hit_) it->second->visited = true;  // D-12: guarded for SIEVE-NoProm ablation
             record(true, size);
             return true;
         }
@@ -441,7 +454,7 @@ public:
         if (queue_.empty()) hand_valid_ = false;
     }
     
-    std::string name() const override { return "SIEVE"; }
+    std::string name() const override { return name_; }
     void reset() override { queue_.clear(); map_.clear(); current_size_ = 0; hand_valid_ = false; stats = {}; }
 };
 
