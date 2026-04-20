@@ -82,7 +82,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A published self-convergence table exists reporting MAE between adjacent sampling rates and an error-vs-sampling-rate figure (no exact oracle — infeasible at 1M scale)
   3. `include/doorkeeper.h` exists (Bloom filter, two hash functions, configurable size); W-TinyLFU+Doorkeeper variant is gated by a constructor flag; the ablation figure shows W-TinyLFU ± Doorkeeper on both workloads
   4. S3-FIFO small-queue ratio sweep (5%, 10%, 20%) and SIEVE visited-bit ablation (on vs off) have both been run on both workloads at a fixed cache size, with CSVs written under `results/congress/` and `results/court/`
-**Plans**: TBD
+**Plans**: 5 plans across 2 execution waves
+- [ ] 04-01-PLAN.md — Axis A: SHARDS large-scale (1M trace + 4-rate sweep + self-convergence + 50K oracle + 2 plot fns) (Wave 1, autonomous, SHARDS-01/02/03)
+- [ ] 04-02-PLAN.md — Axis B Part 1: Doorkeeper standalone header + test_doorkeeper binary (Wave 1, autonomous, DOOR-01)
+- [ ] 04-03-PLAN.md — Axis C: S3-FIFO small-queue ratio ablation on both workloads (Wave 1, autonomous, ABLA-01)
+- [ ] 04-04-PLAN.md — Axis D: SIEVE visited-bit ablation on both workloads (Wave 1, autonomous, ABLA-02)
+- [ ] 04-05-PLAN.md — Axis B Part 2: Doorkeeper integration into W-TinyLFU + ablation_doorkeeper figure (Wave 2, depends on 04-02, autonomous, DOOR-02/03)
 
 ### Phase 5: Cross-Workload Analysis Infrastructure
 **Goal**: Final comparison artifacts — the numbers and tables the report is built from. Cross-workload comparison plots, multi-seed confidence intervals, workload-characterization table, and winner-per-regime analysis.
@@ -115,6 +120,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Enabling Refactors & CourtListener Pilot | 6/6 | Complete | 2026-04-18 |
 | 2. W-TinyLFU Core | 6/6 | Complete | 2026-04-19 |
 | 3. CourtListener Trace Collection & Replay Sweep | 3/3 | Complete | 2026-04-19 |
-| 4. SHARDS Large-Scale Validation & Ablations | 0/TBD | Not started | - |
+| 4. SHARDS Large-Scale Validation & Ablations | 0/5 | Planned | - |
 | 5. Cross-Workload Analysis Infrastructure | 0/TBD | Not started | - |
 | 6. Writeup & Demo | 0/TBD | Not started | - |
