@@ -47,7 +47,7 @@
 
 ### Doorkeeper ablation (DOOR-xx)
 
-- [ ] **DOOR-01**: Implement `include/doorkeeper.h` — Bloom filter with two hash functions, configurable bit-array size
+- [x] **DOOR-01**: Implement `include/doorkeeper.h` — Bloom filter with two hash functions, configurable bit-array size (verified Phase 4 Plan 02 — include/doorkeeper.h 79-line header-only class with Kirsch-Mitzenmacher double-hashing on FNV_SEED_A+B, 4× n_objects_hint bit sizing; tests/test_doorkeeper.cpp 3-gate coverage PASS including empirical FPR 0.0829 in [0.05, 0.25] sanity band; `make test` exit 0 on both wtinylfu + doorkeeper suites)
 - [ ] **DOOR-02**: Add W-TinyLFU+Doorkeeper variant (gated by constructor flag)
 - [ ] **DOOR-03**: Doorkeeper ablation figure: W-TinyLFU ± Doorkeeper on both workloads
 
@@ -127,7 +127,7 @@ All 29 v1 requirements below are mapped to exactly one Milestone 2 phase. See `.
 | SHARDS-01   | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | SHARDS-02   | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | SHARDS-03   | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
-| DOOR-01     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
+| DOOR-01     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | DOOR-02     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
 | DOOR-03     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
 | ABLA-01     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
