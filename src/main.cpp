@@ -77,6 +77,13 @@ static std::unique_ptr<CachePolicy> make_policy(const std::string& name, uint64_
     if (name == "s3fifo-10") return std::make_unique<S3FIFOCache>(capacity, 0.10, "S3-FIFO-10");
     if (name == "s3fifo-20") return std::make_unique<S3FIFOCache>(capacity, 0.20, "S3-FIFO-20");
     if (name == "sieve")    return std::make_unique<SIEVECache>(capacity);
+    // Phase 4 Axis D (D-12 / ABLA-02): SIEVE visited-bit ablation variant.
+    // Pass promote_on_hit=false via the extended ctor in include/cache.h so
+    // the hit-path visited-bit assignment is skipped; the ctor's init-list
+    // ternary sets name_ to "SIEVE-NoProm" for CSV label distinguishability.
+    // Legacy "sieve" branch above is unchanged — it uses the default-arg
+    // ctor and preserves the "SIEVE" label.
+    if (name == "sieve-noprom") return std::make_unique<SIEVECache>(capacity, /*promote_on_hit=*/false);
     if (name == "wtinylfu") return std::make_unique<WTinyLFUCache>(capacity, n_objects_hint);
     return nullptr;
 }
@@ -233,6 +240,11 @@ int main(int argc, char* argv[]) {
             else if (pn == "s3fifo-5")  label = "S3-FIFO-5";
             else if (pn == "s3fifo-10") label = "S3-FIFO-10";
             else if (pn == "s3fifo-20") label = "S3-FIFO-20";
+            // Phase 4 Axis D (D-12 / ABLA-02): SIEVE-NoProm ablation variant.
+            // Mixed-case label required — cache.h's name_ member stores
+            // "SIEVE-NoProm" and the default toupper() path would mangle it
+            // to "SIEVE-NOPROM", diverging from the CSV/plot dict key.
+            else if (pn == "sieve-noprom") label = "SIEVE-NoProm";
             else if (pn == "wtinylfu")  label = "W-TinyLFU";
             else for (auto& c : label) c = toupper(c);
             std::cout << std::setw(10) << label;
@@ -287,6 +299,9 @@ int main(int argc, char* argv[]) {
             else if (pn == "s3fifo-5")  label = "S3-FIFO-5";
             else if (pn == "s3fifo-10") label = "S3-FIFO-10";
             else if (pn == "s3fifo-20") label = "S3-FIFO-20";
+            // Phase 4 Axis D (D-12 / ABLA-02): SIEVE-NoProm ablation variant
+            // (mixed-case label required — see mrc.csv block above).
+            else if (pn == "sieve-noprom") label = "SIEVE-NoProm";
             else if (pn == "wtinylfu")  label = "W-TinyLFU";
             else for (auto& c : label) c = toupper(c);
             std::cout << std::setw(10) << label;

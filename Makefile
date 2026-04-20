@@ -10,7 +10,7 @@ SOURCES := $(wildcard $(SRCDIR)/*.cpp)
 OBJECTS := $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SOURCES))
 TARGET  := cache_sim
 
-.PHONY: all clean run run-sweep plots test shards-large phase-04 ablation-s3fifo
+.PHONY: all clean run run-sweep plots test shards-large phase-04 ablation-s3fifo ablation-sieve
 
 all: $(TARGET)
 
@@ -166,8 +166,29 @@ ablation-s3fifo: $(TARGET)
 	@mv results/court/alpha_sensitivity.csv results/court/ablation_s3fifo.csv
 	@echo "=== ablation-s3fifo complete; figures via 'make plots WORKLOAD=congress && make plots WORKLOAD=court' ==="
 
-# Convenience: all Phase 4 axes in sequence. Plans 04-04/04-05 will append
-# their own dependencies (ablation-sieve, ablation-doorkeeper) to this list as
-# they land.
-phase-04: shards-large ablation-s3fifo
-	@echo "phase-04 step shards-large + ablation-s3fifo complete"
+# ==================== Phase 4 — Axis D: SIEVE visited-bit ablation (D-12, D-13, D-14, D-17) ====================
+# Runs --alpha-sweep with both SIEVE variants (legacy `sieve` default +
+# `sieve-noprom` new variant) on Congress AND Court at fixed 1% cache (via
+# the simulator's --alpha-sweep path which hardcodes wb/100 per D-13). After
+# each invocation, renames the produced alpha_sensitivity.csv to
+# ablation_sieve.csv so the ablation output is namespaced and a subsequent
+# `make run-sweep` does not clobber it.
+ablation-sieve: $(TARGET)
+	mkdir -p results/congress results/court
+	@echo "=== Ablation sieve: Congress trace ==="
+	./$(TARGET) --trace traces/congress_trace.csv --replay-zipf \
+	            --alpha-sweep --policies sieve,sieve-noprom \
+	            --output-dir results/congress
+	@mv results/congress/alpha_sensitivity.csv results/congress/ablation_sieve.csv
+	@echo ""
+	@echo "=== Ablation sieve: Court trace ==="
+	./$(TARGET) --trace traces/court_trace.csv --replay-zipf \
+	            --alpha-sweep --policies sieve,sieve-noprom \
+	            --output-dir results/court
+	@mv results/court/alpha_sensitivity.csv results/court/ablation_sieve.csv
+	@echo "=== ablation-sieve complete; figures via 'make plots WORKLOAD=congress && make plots WORKLOAD=court' ==="
+
+# Convenience: all Phase 4 axes in sequence. Plan 04-05 will append
+# ablation-doorkeeper to this list when it lands.
+phase-04: shards-large ablation-s3fifo ablation-sieve
+	@echo "phase-04 step shards-large + ablation-s3fifo + ablation-sieve complete"
