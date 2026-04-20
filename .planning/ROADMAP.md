@@ -83,7 +83,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `include/doorkeeper.h` exists (Bloom filter, two hash functions, configurable size); W-TinyLFU+Doorkeeper variant is gated by a constructor flag; the ablation figure shows W-TinyLFU ± Doorkeeper on both workloads
   4. S3-FIFO small-queue ratio sweep (5%, 10%, 20%) and SIEVE visited-bit ablation (on vs off) have both been run on both workloads at a fixed cache size, with CSVs written under `results/congress/` and `results/court/`
 **Plans**: 5 plans across 2 execution waves
-- [ ] 04-01-PLAN.md — Axis A: SHARDS large-scale (1M trace + 4-rate sweep + self-convergence + 50K oracle + 2 plot fns) (Wave 1, autonomous, SHARDS-01/02/03)
+- [x] 04-01-PLAN.md — Axis A: SHARDS large-scale (1M trace + 4-rate sweep + self-convergence + 50K oracle + 2 plot fns) (Wave 1, autonomous, SHARDS-01/02/03) — completed 2026-04-20, commits a70af10+5b0010a+7a62c8b; traces/shards_large.csv gitignored 1,000,001 lines; results/shards_large/{shards_mrc.csv (4 rates), shards_mrc_50k.csv (3 rates), shards_convergence.csv (3 rows), shards_error.csv, exact_mrc.csv} produced; figures/shards_convergence.pdf (27KB) + shards_mrc_overlay.pdf (22KB); sanity gate MAE(1%,10%)=0.0378 < 0.05; Phase 1 back-compat preserved (default --shards-rates {0.001, 0.01, 0.1}); 50K oracle guard applies D-01 200-sample floor uniformly (drops both 0.0001 and 0.001 correctly at 50K — 0.001×50000=50 also below floor)
 - [ ] 04-02-PLAN.md — Axis B Part 1: Doorkeeper standalone header + test_doorkeeper binary (Wave 1, autonomous, DOOR-01)
 - [ ] 04-03-PLAN.md — Axis C: S3-FIFO small-queue ratio ablation on both workloads (Wave 1, autonomous, ABLA-01)
 - [ ] 04-04-PLAN.md — Axis D: SIEVE visited-bit ablation on both workloads (Wave 1, autonomous, ABLA-02)
@@ -120,6 +120,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Enabling Refactors & CourtListener Pilot | 6/6 | Complete | 2026-04-18 |
 | 2. W-TinyLFU Core | 6/6 | Complete | 2026-04-19 |
 | 3. CourtListener Trace Collection & Replay Sweep | 3/3 | Complete | 2026-04-19 |
-| 4. SHARDS Large-Scale Validation & Ablations | 0/5 | Planned | - |
+| 4. SHARDS Large-Scale Validation & Ablations | 1/5 | Executing | - |
 | 5. Cross-Workload Analysis Infrastructure | 0/TBD | Not started | - |
 | 6. Writeup & Demo | 0/TBD | Not started | - |
