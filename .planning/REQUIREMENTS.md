@@ -68,7 +68,7 @@
 ### Ablation studies (ABLA-xx)
 
 - [x] **ABLA-01**: S3-FIFO small-queue ratio sweep (5%, 10%, 20%) on both workloads at fixed cache size (verified Phase 4 Plan 03 — S3FIFOCache ctor extended with `small_frac` default-arg; 3 new make_policy branches `s3fifo-{5,10,20}` + Makefile `ablation-s3fifo` target; results/{congress,court}/ablation_s3fifo.csv each 21 rows (3 variants × 7 alphas {0.6..1.2}) + figures/ablation_s3fifo.pdf 2-panel parameter-sensitivity plots; back-compat guard `(small_frac == 0.1) ? capacity / 10 : FP-multiply` preserves Phase 1 mrc.csv bit-identity for legacy `s3fifo`; headline finding: smaller small-queue ratio monotonically wins on both workloads, 6.3pp advantage at Court α=1.2 vs 1.2pp on Congress — publishable result against Yang et al. (SOSP'23) 10% default)
-- [ ] **ABLA-02**: SIEVE visited-bit ablation — SIEVE without promotion on hit vs with, on both workloads
+- [x] **ABLA-02**: SIEVE visited-bit ablation — SIEVE without promotion on hit vs with, on both workloads (verified Phase 4 Plan 04 — SIEVECache ctor extended with `promote_on_hit` default-arg; new make_policy branch `sieve-noprom` + Makefile `ablation-sieve` target; results/{congress,court}/ablation_sieve.csv each 14 data rows (2 variants × 7 alphas {0.6..1.2}) + figures/ablation_sieve.pdf 2-panel parameter-sensitivity plots with linestyle-distinguished variants sharing the same SIEVE purple; structural bit-identity preserved for legacy `sieve` via always-true if-guard wrapping unchanged statement; headline finding: SIEVE-NoProm monotonically loses to SIEVE at every alpha on both workloads with the gap peaking at +15.4pp on Congress (α=1.0) and +11.0pp on Court (α=1.1) — empirically confirms Zhang et al. (NSDI'24)'s claim that lazy promotion is the dominant contributor to SIEVE's scan-resistance)
 
 ### Analysis infrastructure (ANAL-xx)
 
@@ -131,7 +131,7 @@ All 29 v1 requirements below are mapped to exactly one Milestone 2 phase. See `.
 | DOOR-02     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
 | DOOR-03     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
 | ABLA-01     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
-| ABLA-02     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
+| ABLA-02     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | ANAL-01     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
 | ANAL-02     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
 | ANAL-03     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
