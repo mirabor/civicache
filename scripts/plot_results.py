@@ -61,6 +61,11 @@ POLICY_COLORS = {
     # "same policy, promotion on/off"; the plot function distinguishes the
     # two variants via linestyle (solid for SIEVE, dashed for SIEVE-NoProm).
     "SIEVE-NoProm": "#9467bd",
+    # Phase 4 Axis B (D-08 / DOOR-03) — W-TinyLFU + Doorkeeper variant.
+    # Shares the legacy "W-TinyLFU" brown (#8c564b) so the ablation figure
+    # reads as "same policy, doorkeeper on/off"; the plot function
+    # distinguishes the two variants via dashed linestyle for W-TinyLFU+DK.
+    "W-TinyLFU+DK": "#8c564b",
 }
 
 POLICY_MARKERS = {
@@ -79,6 +84,13 @@ POLICY_MARKERS = {
     # Phase 4 Axis D — same marker as legacy SIEVE ("v"); plot_ablation_sieve
     # disambiguates via dashed linestyle for SIEVE-NoProm.
     "SIEVE-NoProm": "v",
+    # Phase 4 Axis B (D-08 / DOOR-03) — W-TinyLFU+DK uses a distinct marker
+    # ("X" cross) from legacy W-TinyLFU's "P" (filled plus) because X remains
+    # visually distinct at small markersize against the dashed linestyle that
+    # carries the DK-on/off distinction — a same-marker pair (like SIEVE's)
+    # reads poorly here since the 2 W-TinyLFU lines cross each other on some
+    # workload×alpha combinations.
+    "W-TinyLFU+DK": "X",
 }
 
 
@@ -554,6 +566,72 @@ def plot_ablation_sieve(figures_dir, congress_dir="results/congress",
     print(f"  Saved {out}")
 
 
+def plot_ablation_doorkeeper(figures_dir, congress_dir="results/congress",
+                              court_dir="results/court"):
+    """W-TinyLFU Doorkeeper ablation figure (D-08 / DOOR-03).
+
+    2-workload-panel grid (Congress | Court) with shared y-axis. Each panel
+    plots miss_ratio vs. Zipf alpha for the 2 W-TinyLFU variants (baseline
+    without Doorkeeper vs. with Doorkeeper pre-CMS filter) at fixed 1% cache
+    (D-13, via the simulator's --alpha-sweep path that hardcodes wb/100).
+    The two variants share the same brown color (POLICY_COLORS["W-TinyLFU"]
+    == POLICY_COLORS["W-TinyLFU+DK"] == "#8c564b") so the ablation reads as
+    "same policy, doorkeeper on/off"; linestyle carries the distinction —
+    solid for baseline W-TinyLFU, dashed for W-TinyLFU+DK.
+
+    Reads results/{congress,court}/ablation_doorkeeper.csv produced by
+    `make ablation-doorkeeper`. Both CSVs must exist for the figure to
+    render; if either is missing the function silently skips (Pattern S8 —
+    lets `make plots` run standalone after partial sweeps).
+
+    Writes results/<workload>/figures/ablation_doorkeeper.pdf. Same figure
+    content across Congress and Court invocations (the figure reads both
+    CSVs regardless of which workload's figures_dir it's writing to);
+    per-workload dirs get their own copy so each workload's figure set
+    is self-contained.
+    """
+    cong_path = os.path.join(congress_dir, "ablation_doorkeeper.csv")
+    court_path = os.path.join(court_dir, "ablation_doorkeeper.csv")
+    if not (os.path.exists(cong_path) and os.path.exists(court_path)):
+        print(f"  Skipping Doorkeeper ablation plot: both "
+              f"{cong_path} and {court_path} required")
+        return
+
+    c_df = pd.read_csv(cong_path); c_df["workload"] = "Congress"
+    k_df = pd.read_csv(court_path); k_df["workload"] = "Court"
+    df = pd.concat([c_df, k_df], ignore_index=True)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5), sharey=True)
+    for ax, wl in zip([ax1, ax2], ["Congress", "Court"]):
+        sub_all = df[df["workload"] == wl]
+        # Sort so legend order is W-TinyLFU, then W-TinyLFU+DK (baseline first).
+        policies_sorted = sorted(
+            sub_all["policy"].unique(),
+            key=lambda p: (1 if p.endswith("+DK") else 0, p),
+        )
+        for policy in policies_sorted:
+            sub = sub_all[sub_all["policy"] == policy].sort_values("alpha")
+            color = POLICY_COLORS.get(policy, "gray")
+            marker = POLICY_MARKERS.get(policy, "x")
+            # D-08 visual: legacy W-TinyLFU solid, +DK dashed (same color).
+            linestyle = "--" if policy.endswith("+DK") else "-"
+            ax.plot(sub["alpha"], sub["miss_ratio"],
+                    marker=marker, markersize=5, label=policy,
+                    color=color, linewidth=1.5, linestyle=linestyle)
+        ax.set_xlabel("Zipf Alpha")
+        ax.set_title(wl)
+        ax.set_ylim(bottom=0)
+    ax1.set_ylabel("Miss Ratio (1% cache)")
+    ax2.legend(bbox_to_anchor=(1.02, 1), loc="upper left",
+               title="doorkeeper")
+    fig.suptitle("W-TinyLFU Doorkeeper ablation (D-08 / DOOR-03)")
+
+    out = os.path.join(figures_dir, "ablation_doorkeeper.pdf")
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {out}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Plot cache simulation results")
     parser.add_argument("--workload", default="congress",
@@ -588,6 +666,7 @@ def main():
     # either source CSV is missing.
     plot_ablation_s3fifo(figures_dir)
     plot_ablation_sieve(figures_dir)
+    plot_ablation_doorkeeper(figures_dir)
     plot_workload(args.traces_dir, figures_dir, args.workload)
     print("Done.")
 

@@ -85,6 +85,12 @@ static std::unique_ptr<CachePolicy> make_policy(const std::string& name, uint64_
     // ctor and preserves the "SIEVE" label.
     if (name == "sieve-noprom") return std::make_unique<SIEVECache>(capacity, /*promote_on_hit=*/false);
     if (name == "wtinylfu") return std::make_unique<WTinyLFUCache>(capacity, n_objects_hint);
+    // Phase 4 Axis B (D-08 / DOOR-02): W-TinyLFU + Doorkeeper variant.
+    // Passes use_doorkeeper=true to the 3-arg ctor so access() applies the
+    // D-05 paper-faithful pre-CMS filter; name() returns "W-TinyLFU+DK" for
+    // CSV label distinguishability. Legacy "wtinylfu" branch above is
+    // unchanged and bit-identical to Phase 2.
+    if (name == "wtinylfu-dk") return std::make_unique<WTinyLFUCache>(capacity, n_objects_hint, /*use_doorkeeper=*/true);
     return nullptr;
 }
 
@@ -246,6 +252,11 @@ int main(int argc, char* argv[]) {
             // to "SIEVE-NOPROM", diverging from the CSV/plot dict key.
             else if (pn == "sieve-noprom") label = "SIEVE-NoProm";
             else if (pn == "wtinylfu")  label = "W-TinyLFU";
+            // Phase 4 Axis B (D-08 / DOOR-02): W-TinyLFU+Doorkeeper variant.
+            // Mixed-case label required — cache name() returns "W-TinyLFU+DK"
+            // when use_doorkeeper_=true; the default toupper() path would
+            // mangle it to "WTINYLFU-DK", diverging from the CSV/plot dict key.
+            else if (pn == "wtinylfu-dk") label = "W-TinyLFU+DK";
             else for (auto& c : label) c = toupper(c);
             std::cout << std::setw(10) << label;
         }
@@ -303,6 +314,9 @@ int main(int argc, char* argv[]) {
             // (mixed-case label required — see mrc.csv block above).
             else if (pn == "sieve-noprom") label = "SIEVE-NoProm";
             else if (pn == "wtinylfu")  label = "W-TinyLFU";
+            // Phase 4 Axis B (D-08 / DOOR-02): W-TinyLFU+Doorkeeper variant
+            // (mixed-case label required — see mrc.csv block above).
+            else if (pn == "wtinylfu-dk") label = "W-TinyLFU+DK";
             else for (auto& c : label) c = toupper(c);
             std::cout << std::setw(10) << label;
         }
