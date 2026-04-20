@@ -6,6 +6,7 @@
 #include <utility>
 #include <algorithm>
 #include "count_min_sketch.h"
+#include "doorkeeper.h"  // Plan 04-05 D-08: embedded sibling to cms_ when use_doorkeeper_=true
 // cache.h is NOT re-included: this header is itself included FROM cache.h,
 // so CachePolicy and CacheStats are already in scope in the translation unit.
 
@@ -34,15 +35,30 @@
 //     no adversarial threat model in an offline research simulator.
 //   - Update rule / sample_size / hash scheme differences are encapsulated
 //     in CountMinSketch and do not appear in this header.
+//   - Phase 4 D-05 (Plan 04-05): optional paper-faithful Doorkeeper pre-CMS
+//     record filter gated by ctor flag `use_doorkeeper` (default false =
+//     Phase 2 bit-identical). When true, the FIRST touch of a key is absorbed
+//     by an embedded Doorkeeper Bloom filter and NOT recorded into cms_;
+//     subsequent touches record as in baseline. Admission logic is UNCHANGED
+//     per D-10 ("same admission, different counting"). Caffeine omits
+//     Doorkeeper in production (CAFFEINE-NOTES §6); our DK is ablation-only.
 class WTinyLFUCache : public CachePolicy {
 public:
-    WTinyLFUCache(uint64_t capacity_bytes, uint64_t n_objects_hint)
+    WTinyLFUCache(uint64_t capacity_bytes, uint64_t n_objects_hint,
+                  bool use_doorkeeper = false)
         : window_capacity_(std::max<uint64_t>(1, capacity_bytes / 100)),
           main_capacity_(capacity_bytes > window_capacity_
                              ? capacity_bytes - window_capacity_
                              : 0),
           protected_capacity_((main_capacity_ * 80) / 100),
-          cms_(std::max<uint64_t>(1, n_objects_hint))
+          cms_(std::max<uint64_t>(1, n_objects_hint)),
+          use_doorkeeper_(use_doorkeeper),
+          // D-06 sizing: 4 × n_objects_hint bits. When use_doorkeeper_=false
+          // we still allocate the minimum (1 element = 64 bits of packed bits_
+          // vector) so the member is always validly constructed — the 64 bits
+          // of overhead on baseline wtinylfu is noise. The member is never
+          // read/written when the flag is false (access() branch skips it).
+          doorkeeper_(use_doorkeeper ? std::max<uint64_t>(1, n_objects_hint) : 1)
     {
         // total_capacity_bytes = window_capacity_ + main_capacity_ and
         // probation_capacity_bytes = main_capacity_ - protected_capacity_
@@ -50,14 +66,47 @@ public:
         // referenced elsewhere in the policy (main_capacity_ is the
         // effective admission budget; probation is bounded by "main - protected").
         (void)capacity_bytes;
+
+        // D-09 (Plan 04-05): register the DK reset callback on CMS aging.
+        // Only when DK is on — baseline wtinylfu leaves on_age_cb_ default-
+        // empty, and CMS's halve_all_() `if (on_age_cb_)` check is then
+        // a branch-predictable no-op (zero overhead). The lambda captures
+        // `this` so the reference to doorkeeper_ stays valid for the life of
+        // the cache.
+        if (use_doorkeeper_) {
+            cms_.set_on_age_cb([this]{ doorkeeper_.clear(); });
+        }
     }
 
     bool access(const std::string& key, uint64_t size) override {
-        // Caffeine increments on EVERY access (hit OR miss, regardless of
-        // region). 02-01-CAFFEINE-NOTES.md §4 "onAccess" at L1775-L1796 and
-        // L7 "admission test runs on main-region contention" both rely on
-        // this happening before any branch.
-        cms_.record(key);
+        // CMS records on EVERY access — Caffeine semantics per
+        // 02-01-CAFFEINE-NOTES.md §4 "onAccess" L1775-L1796 and §7 "admission
+        // test runs on main-region contention" (both rely on record happening
+        // before any branch).
+        //
+        // D-05 (Plan 04-05): when use_doorkeeper_=true, apply the Einziger-
+        // Friedman §4.3 paper-faithful pre-CMS filter — a key's FIRST touch
+        // is absorbed into the Doorkeeper bit array and NOT recorded into
+        // CMS; subsequent touches (DK hit) record into CMS as in baseline.
+        // When use_doorkeeper_=false, behavior is IDENTICAL to Phase 2: the
+        // else-branch's cms_.record(key) fires unconditionally.
+        //
+        // L-12 stats single-source invariant preserved: this if/else wraps
+        // a SINGLE existing cms_.record(key) — it does NOT introduce
+        // duplicate stats records. The four record-hit/miss calls below at
+        // the three hit-path returns and the one miss fall-through are
+        // UNCHANGED in count and position (grep `record\(\s*(true|false)`
+        // still returns 4, same as Phase 2).
+        if (use_doorkeeper_) {
+            if (doorkeeper_.contains(key)) {
+                cms_.record(key);  // DK hit: subsequent touch -> record as in baseline
+            } else {
+                doorkeeper_.add(key);
+                // DK miss: first touch absorbed by DK; skip cms_.record() per D-05.
+            }
+        } else {
+            cms_.record(key);  // Phase 2 baseline path — bit-identical
+        }
 
         // Hit-path: probe window -> protected -> probation.
         if (auto it = window_map_.find(key); it != window_map_.end()) {
@@ -113,13 +162,21 @@ public:
         return false;
     }
 
-    std::string name() const override { return "W-TinyLFU"; }
+    // Plan 04-05 (D-08): display name tracks the Doorkeeper ctor flag so CSV
+    // `policy` rows carry "W-TinyLFU+DK" for the ablation variant while
+    // baseline stays "W-TinyLFU" (Phase 2 bit-identical alias).
+    std::string name() const override {
+        return use_doorkeeper_ ? "W-TinyLFU+DK" : "W-TinyLFU";
+    }
 
     void reset() override {
         window_list_.clear();    window_map_.clear();    window_size_ = 0;
         protected_list_.clear(); protected_map_.clear(); protected_size_ = 0;
         probation_list_.clear(); probation_map_.clear(); probation_size_ = 0;
         cms_.reset();
+        // Plan 04-05 (D-09): full wipe matches CMS reset. Baseline wtinylfu
+        // skips this; the DK variant clears to keep freshness window aligned.
+        if (use_doorkeeper_) doorkeeper_.clear();
         stats = {};
     }
 
@@ -137,6 +194,14 @@ private:
     List probation_list_; Map probation_map_; uint64_t probation_size_ = 0;
 
     CountMinSketch cms_;
+
+    // Plan 04-05 (D-08/D-09): optional Doorkeeper sibling, gated by ctor flag.
+    // use_doorkeeper_ is the runtime predicate for the access()/reset() branches
+    // and the name() selector. doorkeeper_ is always constructed (minimum 1
+    // element = 64 bits of overhead when the flag is false) so the member is
+    // always validly initialized regardless of flag state.
+    bool use_doorkeeper_;
+    Doorkeeper doorkeeper_;
 
     // Evict window LRU-head entries until the window is under its byte
     // budget. Each evicted entry becomes a candidate for admission into
