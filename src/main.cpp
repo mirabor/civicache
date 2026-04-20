@@ -29,6 +29,9 @@ static void print_usage(const char* prog) {
               << "  --alpha-sweep          Run alpha sensitivity sweep\n"
               << "  --shards               Run SHARDS MRC construction\n"
               << "  --shards-exact         Also compute exact stack distances (slow, small traces only)\n"
+              << "  --shards-rates <list>  Comma-separated SHARDS sampling rates (default: 0.001,0.01,0.1)\n"
+              << "  --limit <n>            Truncate loaded trace to first n entries (default: no limit)\n"
+              << "  --emit-trace <path>    Generate synthetic Zipf trace and write to <path>, then exit\n"
               << "  --replay-zipf          Resample a real trace with Zipf popularity (use with --trace)\n"
               << "  -h, --help             Show this help\n";
 }
@@ -85,8 +88,11 @@ int main(int argc, char* argv[]) {
     std::string output_dir = "results";
     std::vector<double> cache_fracs = {0.001, 0.005, 0.01, 0.02, 0.05, 0.1};
     std::vector<std::string> policy_names = {"lru", "fifo", "clock", "s3fifo", "sieve", "wtinylfu"};
+    std::vector<double> shards_rates = {0.001, 0.01, 0.1};  // D-18 default preserves Phase 1 back-compat
     uint64_t num_requests = 500000;
     uint64_t num_objects = 50000;
+    uint64_t trace_limit = 0;                                // D-03: 0 means "no limit"
+    std::string emit_trace_path;                             // D-15: when non-empty, generate + write + exit
     double alpha = 0.8;
     bool alpha_sweep = false;
     bool run_shards = false;
@@ -117,6 +123,13 @@ int main(int argc, char* argv[]) {
         } else if (std::strcmp(argv[i], "--shards-exact") == 0) {
             shards_exact = true;
             run_shards = true;
+        } else if (std::strcmp(argv[i], "--shards-rates") == 0 && i + 1 < argc) {
+            shards_rates.clear();
+            for (auto& s : split(argv[++i], ',')) shards_rates.push_back(std::stod(s));
+        } else if (std::strcmp(argv[i], "--limit") == 0 && i + 1 < argc) {
+            trace_limit = std::stoull(argv[++i]);
+        } else if (std::strcmp(argv[i], "--emit-trace") == 0 && i + 1 < argc) {
+            emit_trace_path = argv[++i];
         } else if (std::strcmp(argv[i], "--replay-zipf") == 0) {
             replay_zipf_mode = true;
         } else if (std::strcmp(argv[i], "-h") == 0 || std::strcmp(argv[i], "--help") == 0) {
@@ -132,6 +145,23 @@ int main(int argc, char* argv[]) {
     if (!hash_util_self_test()) {
         std::cerr << "hash_util self-test failed — aborting\n";
         return 1;
+    }
+
+    // D-15: --emit-trace writes a deterministic synthetic Zipf trace to disk and exits.
+    // Invoked by `make traces/shards_large.csv` to regenerate the 1M synthetic on demand.
+    if (!emit_trace_path.empty()) {
+        std::cout << "Generating synthetic Zipf trace -> " << emit_trace_path << "\n";
+        std::cout << "  num_requests=" << num_requests
+                  << " num_objects=" << num_objects
+                  << " alpha=" << alpha << " seed=42\n";
+        auto t = generate_zipf_trace(num_requests, num_objects, alpha, 42);
+        std::ofstream out(emit_trace_path);
+        if (!out) { std::cerr << "Cannot open " << emit_trace_path << " for write\n"; return 1; }
+        out << "timestamp,key,size\n";
+        for (auto& e : t) out << e.timestamp << "," << e.key << "," << e.size << "\n";
+        out.close();
+        std::cout << "Wrote " << t.size() << " rows to " << emit_trace_path << "\n";
+        return 0;
     }
 
     std::cout << "=== Cache Policy Simulator for Legislative Workloads ===\n\n";
@@ -158,6 +188,14 @@ int main(int argc, char* argv[]) {
         std::cout << "Generating synthetic Zipf trace (alpha=" << alpha
                   << ", n=" << num_requests << ", objects=" << num_objects << ")\n";
         trace = generate_zipf_trace(num_requests, num_objects, alpha);
+    }
+
+    // D-03: --limit truncates the trace BEFORE any processing. Used by the
+    // 50K oracle regime (the existing --shards-exact 50K cap at line 334
+    // becomes a no-op redundancy when the user passes --limit 50000).
+    if (trace_limit > 0 && trace.size() > trace_limit) {
+        trace.resize(trace_limit);
+        std::cout << "  Trace truncated to first " << trace_limit << " entries (--limit)\n";
     }
 
     // ---------- Workload characterization ----------
@@ -301,7 +339,6 @@ int main(int argc, char* argv[]) {
     // ---------- SHARDS ----------
     if (run_shards) {
         std::cout << "=== SHARDS MRC Construction ===\n";
-        std::vector<double> rates = {0.001, 0.01, 0.1};
         // MRC x-axis is in object count (stack distances are object-based)
         uint64_t max_cache = ws.unique_objects;
 
@@ -309,7 +346,7 @@ int main(int argc, char* argv[]) {
         std::ofstream csv(csv_path);
         csv << "sampling_rate,cache_size_objects,miss_ratio,accesses_per_sec\n";
 
-        for (double rate : rates) {
+        for (double rate : shards_rates) {
             SHARDS shards(rate);
             auto t_start = std::chrono::steady_clock::now();
             shards.process(trace);
@@ -328,6 +365,45 @@ int main(int argc, char* argv[]) {
         }
         csv.close();
         std::cout << "SHARDS MRC data written to " << csv_path << "\n";
+
+        // D-02: self-convergence — MAE of each rate vs. 10% reference.
+        // Schema: reference_rate,compared_rate,mae,max_abs_error,num_points,
+        //         n_samples_reference,n_samples_compared.
+        // One row per non-reference rate (typically 3 rows for the standard 4-rate sweep).
+        // D-01: n_samples_compared carries the <200-sample caveat for 0.0001 rate at 1M scale.
+        {
+            std::string conv_path = output_dir + "/shards_convergence.csv";
+            std::ofstream conv_csv(conv_path);
+            conv_csv << "reference_rate,compared_rate,mae,max_abs_error,num_points,"
+                        "n_samples_reference,n_samples_compared\n";
+
+            constexpr double REFERENCE_RATE = 0.1;
+            SHARDS ref(REFERENCE_RATE);
+            ref.process(trace);
+            auto ref_mrc = ref.build_mrc(max_cache, 100);
+            uint64_t ref_samples = ref.total_sampled();
+
+            for (double rate : shards_rates) {
+                if (rate == REFERENCE_RATE) continue;  // skip self-vs-self
+                SHARDS cmp(rate);
+                cmp.process(trace);
+                auto cmp_mrc = cmp.build_mrc(max_cache, 100);
+                size_t n = std::min(ref_mrc.size(), cmp_mrc.size());
+                double sum_err = 0, max_err = 0;
+                for (size_t j = 0; j < n; j++) {
+                    double err = std::abs(cmp_mrc[j].miss_ratio - ref_mrc[j].miss_ratio);
+                    sum_err += err;
+                    max_err = std::max(max_err, err);
+                }
+                double mae = n > 0 ? sum_err / n : 0;
+                conv_csv << REFERENCE_RATE << "," << rate << ","
+                         << std::setprecision(6) << mae << "," << max_err << ","
+                         << n << "," << ref_samples << "," << cmp.total_sampled() << "\n";
+            }
+            conv_csv.close();
+            std::cout << "SHARDS self-convergence data written to " << conv_path
+                      << " (shards_convergence.csv)\n";
+        }
 
         // Exact stack distances for validation (small traces only)
         if (shards_exact) {
@@ -356,7 +432,15 @@ int main(int argc, char* argv[]) {
                 std::cout << std::setw(10) << "Rate" << std::setw(10) << "MAE"
                           << std::setw(12) << "Max Error" << "\n";
 
-                for (double rate : rates) {
+                // D-03: in the 50K oracle regime, skip rates where total_sampled() would be < 200
+                // (e.g., 0.0001 × 50000 = 5 samples is meaningless). Use rate * trace.size() as the
+                // cheap analytic estimate; the actual sample count is checked post-hoc by the writer.
+                std::vector<double> oracle_rates;
+                for (double r : shards_rates) {
+                    if (r * (double)trace.size() >= 200.0) oracle_rates.push_back(r);
+                }
+
+                for (double rate : oracle_rates) {
                     SHARDS s(rate);
                     s.process(trace);
                     auto approx = s.build_mrc(max_cache, 100);
