@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <functional>  // D-09 (Plan 04-05): std::function for on_age_cb_ hook
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -99,6 +100,16 @@ public:
     // Used by tests/test_wtinylfu.cpp (02-04) to verify aging-cadence deterministically.
     void force_age() { halve_all_(); }
 
+    // D-09 hook (Plan 04-05): register a callback fired at the end of halve_all_()
+    // — the natural aging cadence. Default-empty std::function is a no-op (zero
+    // overhead) for baseline wtinylfu (no callback registered); WTinyLFUCache
+    // sets this to `[this]{ doorkeeper_.clear(); }` only when use_doorkeeper_=true
+    // so the Doorkeeper bit array stays aligned with CMS freshness windows
+    // (STACK.md §Doorkeeper: "aligned with the CMS so freshness is consistent").
+    // Because force_age() calls halve_all_(), test code can deterministically
+    // observe DK clears via the same hook.
+    void set_on_age_cb(std::function<void()> cb) { on_age_cb_ = std::move(cb); }
+
     uint64_t width() const { return width_; }
     uint64_t sample_size() const { return sample_size_; }
     uint64_t sample_count() const { return sample_count_; }
@@ -109,6 +120,7 @@ private:
     uint64_t sample_size_;
     uint64_t sample_count_;
     std::vector<std::vector<uint8_t>> rows_;  // rows_[row][byte]
+    std::function<void()> on_age_cb_;  // D-09 (Plan 04-05): fired from halve_all_() if set
 
     uint8_t get_counter(uint32_t row, uint64_t col) const {
         uint8_t byte = rows_[row][col >> 1];
@@ -138,5 +150,10 @@ private:
             }
         }
         sample_count_ = 0;
+        // D-09 (Plan 04-05): notify subscribers of the aging event. The
+        // default-empty std::function branch-predictable-skips for baseline
+        // wtinylfu (no callback registered). WTinyLFUCache's Doorkeeper path
+        // uses this to clear() the DK bit array in lockstep with CMS aging.
+        if (on_age_cb_) on_age_cb_();
     }
 };
