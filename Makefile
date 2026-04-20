@@ -10,7 +10,7 @@ SOURCES := $(wildcard $(SRCDIR)/*.cpp)
 OBJECTS := $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SOURCES))
 TARGET  := cache_sim
 
-.PHONY: all clean run run-sweep plots test
+.PHONY: all clean run run-sweep plots test shards-large phase-04
 
 all: $(TARGET)
 
@@ -94,3 +94,40 @@ $(TEST_TARGET): $(TEST_OBJ)
 test: $(TEST_TARGET)
 	@echo "=== Running W-TinyLFU test suite ==="
 	$(TEST_TARGET)
+
+# ==================== Phase 4 — SHARDS large-scale (D-15, D-17, D-18) ====================
+# Independent of WORKLOAD=/TRACE= plumbing per D-17. Each Phase 4 target owns
+# its invocation shape — no flag-juggling via the Phase 3 sweep target.
+
+# Generate the 1M-access synthetic Zipf(alpha=0.8, 100K objects, seed=42) trace.
+# Gitignored per D-15; regenerated on demand. Runtime: <5s on dev laptop.
+traces/shards_large.csv: $(TARGET)
+	./$(TARGET) --emit-trace traces/shards_large.csv \
+	            --num-requests 1000000 --num-objects 100000 --alpha 0.8
+
+# SHARDS large-scale validation: 4-rate sweep + self-convergence + 50K oracle.
+# Runs the simulator TWICE: first the 50K oracle regime (saves shards_mrc
+# renamed to shards_mrc_50k.csv so step 2 can overwrite shards_mrc.csv without
+# clobbering the oracle-regime MRC), then the 1M self-convergence regime.
+# Outputs land in results/shards_large/.
+shards-large: $(TARGET) traces/shards_large.csv
+	mkdir -p results/shards_large
+	@echo "=== Step 1/2: 50K oracle regime (--limit 50000 + --shards-exact) ==="
+	./$(TARGET) --trace traces/shards_large.csv \
+	            --shards --shards-exact --limit 50000 \
+	            --shards-rates 0.001,0.01,0.1 \
+	            --output-dir results/shards_large
+	@mv results/shards_large/shards_mrc.csv results/shards_large/shards_mrc_50k.csv 2>/dev/null || true
+	@echo ""
+	@echo "=== Step 2/2: 1M self-convergence regime ==="
+	./$(TARGET) --trace traces/shards_large.csv \
+	            --shards \
+	            --shards-rates 0.0001,0.001,0.01,0.1 \
+	            --output-dir results/shards_large
+	@echo "=== shards-large complete. Figures via 'make plots WORKLOAD=shards_large' ==="
+
+# Convenience: all Phase 4 axes in sequence. Plans 04-02..05 will append
+# their own dependencies (ablation-doorkeeper, ablation-s3fifo, ablation-sieve)
+# to this list as they land.
+phase-04: shards-large
+	@echo "phase-04 step shards-large complete"
