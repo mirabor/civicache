@@ -206,6 +206,13 @@ class S3FIFOCache : public CachePolicy {
     uint64_t total_capacity_;
     uint64_t small_capacity_;
     uint64_t main_capacity_;
+    // Phase 4 Axis C (D-11 / ABLA-01): small-queue-ratio ablation params.
+    // small_frac_ records the ratio the instance was built with (0.05 / 0.10 /
+    // 0.20). name_ is the display string written into CSV `policy` columns —
+    // default "S3-FIFO" preserves Phase 1 back-compat; the ablation factory
+    // branches in make_policy override it via the delegating ctor below.
+    double small_frac_;
+    std::string name_;
 
     // Small FIFO queue with frequency tracking
     struct SmallEntry {
@@ -232,10 +239,38 @@ class S3FIFOCache : public CachePolicy {
     std::unordered_set<std::string> ghost_set_;
 
 public:
-    S3FIFOCache(uint64_t capacity) : total_capacity_(capacity) {
-        small_capacity_ = std::max((uint64_t)1, capacity / 10);
+    // Phase 4 Axis C primary ctor (D-11): small_frac defaults to 0.1 to
+    // preserve Phase 1 behavior. The legacy `s3fifo` make_policy branch calls
+    // this with no second arg; the `capacity / 10` integer-truncation formula
+    // is kept on the default-arg path so re-runs produce bit-identical CSVs.
+    // The 0.05 / 0.20 ablation paths use the FP formula. name_ defaults to
+    // "S3-FIFO" (the legacy display string); the delegating ctor below
+    // overrides it for the ablation variants.
+    S3FIFOCache(uint64_t capacity, double small_frac = 0.1)
+        : total_capacity_(capacity), small_frac_(small_frac), name_("S3-FIFO") {
+        small_capacity_ = std::max<uint64_t>(1,
+            (small_frac == 0.1)
+                ? capacity / 10
+                : static_cast<uint64_t>(static_cast<double>(capacity) * small_frac));
         main_capacity_ = capacity - small_capacity_;
     }
+
+    // Phase 4 Axis C delegating ctor (D-11): explicit-name overload used by
+    // the s3fifo-5 / s3fifo-10 / s3fifo-20 branches in make_policy. Routes
+    // through the primary ctor for sizing, then overrides name_ so CSV rows
+    // carry the ablation display string (e.g. "S3-FIFO-10") rather than the
+    // legacy "S3-FIFO" alias.
+    S3FIFOCache(uint64_t capacity, double small_frac, const std::string& name_override)
+        : S3FIFOCache(capacity, small_frac) {
+        name_ = name_override;
+    }
+
+    // Phase 4 Axis C (D-11): test / introspection getter for the small-queue
+    // ratio the instance was built with. Lets ablation-verification code
+    // confirm each variant received its intended small_frac without grepping
+    // CSV rows. Also consumes small_frac_ so -Wunused-private-field stays
+    // clean under -Wall -Wextra.
+    double small_frac() const { return small_frac_; }
 
     bool access(const std::string& key, uint64_t size) override {
         // Check main
@@ -325,7 +360,10 @@ public:
         }
     }
 
-    std::string name() const override { return "S3-FIFO"; }
+    // Phase 4 Axis C (D-11): delegates to name_ member so ablation variants
+    // emit "S3-FIFO-5" / "S3-FIFO-10" / "S3-FIFO-20" while the legacy
+    // `s3fifo` policy keeps the default "S3-FIFO" display string.
+    std::string name() const override { return name_; }
     void reset() override {
         small_queue_.clear(); small_map_.clear(); small_size_ = 0;
         main_queue_.clear(); main_map_.clear(); main_size_ = 0;
