@@ -67,7 +67,7 @@
 
 ### Ablation studies (ABLA-xx)
 
-- [ ] **ABLA-01**: S3-FIFO small-queue ratio sweep (5%, 10%, 20%) on both workloads at fixed cache size
+- [x] **ABLA-01**: S3-FIFO small-queue ratio sweep (5%, 10%, 20%) on both workloads at fixed cache size (verified Phase 4 Plan 03 — S3FIFOCache ctor extended with `small_frac` default-arg; 3 new make_policy branches `s3fifo-{5,10,20}` + Makefile `ablation-s3fifo` target; results/{congress,court}/ablation_s3fifo.csv each 21 rows (3 variants × 7 alphas {0.6..1.2}) + figures/ablation_s3fifo.pdf 2-panel parameter-sensitivity plots; back-compat guard `(small_frac == 0.1) ? capacity / 10 : FP-multiply` preserves Phase 1 mrc.csv bit-identity for legacy `s3fifo`; headline finding: smaller small-queue ratio monotonically wins on both workloads, 6.3pp advantage at Court α=1.2 vs 1.2pp on Congress — publishable result against Yang et al. (SOSP'23) 10% default)
 - [ ] **ABLA-02**: SIEVE visited-bit ablation — SIEVE without promotion on hit vs with, on both workloads
 
 ### Analysis infrastructure (ANAL-xx)
@@ -130,7 +130,7 @@ All 29 v1 requirements below are mapped to exactly one Milestone 2 phase. See `.
 | DOOR-01     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | DOOR-02     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
 | DOOR-03     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
-| ABLA-01     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
+| ABLA-01     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | ABLA-02     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
 | ANAL-01     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
 | ANAL-02     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
