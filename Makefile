@@ -72,28 +72,47 @@ plots:
 	PYTHONPATH=$(PLOT_PYTHONPATH) \
 	$(PLOT_PYTHON) scripts/plot_results.py --workload $(WORKLOAD)
 
-# ==================== Test binary (D-04/D-05/D-07) ====================
-# Standalone assertion-based test for W-TinyLFU + CountMinSketch.
-# Separate build/test/ object dir so `make && make test` does not rebuild
-# the main simulator (D-07). No third-party framework (D-06).
-TEST_SRC     := tests/test_wtinylfu.cpp
+# ==================== Test binaries (Phase 2 D-04/D-05/D-07 + Phase 4) ====================
+# Two standalone assertion-based binaries: test_wtinylfu (Phase 2 — WTLFU-04
+# acceptance) and test_doorkeeper (Phase 4 Plan 04-02 — DOOR-01 acceptance).
+# Separate build/test/ object dir per D-07 so `make && make test` does not
+# rebuild the main simulator. No third-party framework (D-06).
+
 TEST_OBJDIR  := build/test
-TEST_OBJ     := $(TEST_OBJDIR)/test_wtinylfu.o
-TEST_TARGET  := $(TEST_OBJDIR)/test_wtinylfu
+
+TEST_WTLFU_SRC    := tests/test_wtinylfu.cpp
+TEST_WTLFU_OBJ    := $(TEST_OBJDIR)/test_wtinylfu.o
+TEST_WTLFU_TARGET := $(TEST_OBJDIR)/test_wtinylfu
+
+TEST_DK_SRC    := tests/test_doorkeeper.cpp
+TEST_DK_OBJ    := $(TEST_OBJDIR)/test_doorkeeper.o
+TEST_DK_TARGET := $(TEST_OBJDIR)/test_doorkeeper
 
 $(TEST_OBJDIR):
 	mkdir -p $(TEST_OBJDIR)
 
-$(TEST_OBJ): $(TEST_SRC) | $(TEST_OBJDIR)
+$(TEST_WTLFU_OBJ): $(TEST_WTLFU_SRC) | $(TEST_OBJDIR)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-$(TEST_TARGET): $(TEST_OBJ)
+$(TEST_WTLFU_TARGET): $(TEST_WTLFU_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
-# `make test` builds and runs the test binary. Non-zero exit on any failure.
-test: $(TEST_TARGET)
+$(TEST_DK_OBJ): $(TEST_DK_SRC) | $(TEST_OBJDIR)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(TEST_DK_TARGET): $(TEST_DK_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+# `make test` builds and runs BOTH test binaries. Non-zero exit on any failure
+# (Make stops at the first non-zero exit; both binaries' main() returns 1 on
+# failures, so the whole `make test` invocation exits non-zero if either suite
+# fails — the failing binary's stderr is the diagnosis surface).
+test: $(TEST_WTLFU_TARGET) $(TEST_DK_TARGET)
 	@echo "=== Running W-TinyLFU test suite ==="
-	$(TEST_TARGET)
+	$(TEST_WTLFU_TARGET)
+	@echo ""
+	@echo "=== Running Doorkeeper test suite ==="
+	$(TEST_DK_TARGET)
 
 # ==================== Phase 4 — SHARDS large-scale (D-15, D-17, D-18) ====================
 # Independent of WORKLOAD=/TRACE= plumbing per D-17. Each Phase 4 target owns
