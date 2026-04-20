@@ -56,6 +56,11 @@ POLICY_COLORS = {
     "S3-FIFO-5":  "#ff7f7f",  # lighter red (lower small-queue ratio)
     "S3-FIFO-10": "#d62728",  # matches legacy "S3-FIFO" — the default alias
     "S3-FIFO-20": "#8b0000",  # darker red (higher small-queue ratio)
+    # Phase 4 Axis D (D-12 / ABLA-02) — SIEVE visited-bit ablation variant.
+    # Shares the legacy "SIEVE" purple so the ablation figure reads as
+    # "same policy, promotion on/off"; the plot function distinguishes the
+    # two variants via linestyle (solid for SIEVE, dashed for SIEVE-NoProm).
+    "SIEVE-NoProm": "#9467bd",
 }
 
 POLICY_MARKERS = {
@@ -71,6 +76,9 @@ POLICY_MARKERS = {
     "S3-FIFO-5":  "<",
     "S3-FIFO-10": "D",
     "S3-FIFO-20": ">",
+    # Phase 4 Axis D — same marker as legacy SIEVE ("v"); plot_ablation_sieve
+    # disambiguates via dashed linestyle for SIEVE-NoProm.
+    "SIEVE-NoProm": "v",
 }
 
 
@@ -480,6 +488,72 @@ def plot_ablation_s3fifo(figures_dir, congress_dir="results/congress",
     print(f"  Saved {out}")
 
 
+def plot_ablation_sieve(figures_dir, congress_dir="results/congress",
+                        court_dir="results/court"):
+    """SIEVE visited-bit ablation figure (D-12 / ABLA-02).
+
+    2-workload-panel grid (Congress | Court) with shared y-axis. Each panel
+    plots miss_ratio vs. Zipf alpha for the 2 variants (SIEVE with lazy
+    promotion-on-hit, SIEVE-NoProm without) at fixed 1% cache (D-13, via
+    the simulator's --alpha-sweep path that hardcodes wb/100). The two
+    variants share the same purple color (POLICY_COLORS["SIEVE"] ==
+    POLICY_COLORS["SIEVE-NoProm"] == "#9467bd") so the ablation reads as
+    "same policy, promotion on/off"; linestyle carries the distinction —
+    solid for SIEVE, dashed for SIEVE-NoProm.
+
+    Reads results/{congress,court}/ablation_sieve.csv produced by
+    `make ablation-sieve`. Both CSVs must exist for the figure to render;
+    if either is missing the function silently skips (Pattern S8 — lets
+    `make plots` run standalone after partial sweeps).
+
+    Writes results/<workload>/figures/ablation_sieve.pdf. Same figure
+    content across Congress and Court invocations (the figure reads both
+    CSVs regardless of which workload's figures_dir it's writing to);
+    per-workload dirs get their own copy so each workload's figure set
+    is self-contained.
+    """
+    cong_path = os.path.join(congress_dir, "ablation_sieve.csv")
+    court_path = os.path.join(court_dir, "ablation_sieve.csv")
+    if not (os.path.exists(cong_path) and os.path.exists(court_path)):
+        print(f"  Skipping SIEVE ablation plot: both "
+              f"{cong_path} and {court_path} required")
+        return
+
+    c_df = pd.read_csv(cong_path); c_df["workload"] = "Congress"
+    k_df = pd.read_csv(court_path); k_df["workload"] = "Court"
+    df = pd.concat([c_df, k_df], ignore_index=True)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5), sharey=True)
+    for ax, wl in zip([ax1, ax2], ["Congress", "Court"]):
+        sub_all = df[df["workload"] == wl]
+        # Sort so legend order is SIEVE, then SIEVE-NoProm (baseline first).
+        policies_sorted = sorted(
+            sub_all["policy"].unique(),
+            key=lambda p: (1 if p.endswith("NoProm") else 0, p),
+        )
+        for policy in policies_sorted:
+            sub = sub_all[sub_all["policy"] == policy].sort_values("alpha")
+            color = POLICY_COLORS.get(policy, "gray")
+            marker = POLICY_MARKERS.get(policy, "x")
+            # D-12 visual: SIEVE solid, SIEVE-NoProm dashed (same color).
+            linestyle = "--" if policy.endswith("NoProm") else "-"
+            ax.plot(sub["alpha"], sub["miss_ratio"],
+                    marker=marker, markersize=5, label=policy,
+                    color=color, linewidth=1.5, linestyle=linestyle)
+        ax.set_xlabel("Zipf Alpha")
+        ax.set_title(wl)
+        ax.set_ylim(bottom=0)
+    ax1.set_ylabel("Miss Ratio (1% cache)")
+    ax2.legend(bbox_to_anchor=(1.02, 1), loc="upper left",
+               title="visited-bit promotion")
+    fig.suptitle("SIEVE visited-bit ablation (D-12 / ABLA-02)")
+
+    out = os.path.join(figures_dir, "ablation_sieve.pdf")
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {out}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Plot cache simulation results")
     parser.add_argument("--workload", default="congress",
@@ -513,6 +587,7 @@ def main():
     # WORKLOAD=court` each refresh their own copy. Silently skipped when
     # either source CSV is missing.
     plot_ablation_s3fifo(figures_dir)
+    plot_ablation_sieve(figures_dir)
     plot_workload(args.traces_dir, figures_dir, args.workload)
     print("Done.")
 
