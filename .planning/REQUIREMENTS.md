@@ -48,8 +48,8 @@
 ### Doorkeeper ablation (DOOR-xx)
 
 - [x] **DOOR-01**: Implement `include/doorkeeper.h` — Bloom filter with two hash functions, configurable bit-array size (verified Phase 4 Plan 02 — include/doorkeeper.h 79-line header-only class with Kirsch-Mitzenmacher double-hashing on FNV_SEED_A+B, 4× n_objects_hint bit sizing; tests/test_doorkeeper.cpp 3-gate coverage PASS including empirical FPR 0.0829 in [0.05, 0.25] sanity band; `make test` exit 0 on both wtinylfu + doorkeeper suites)
-- [ ] **DOOR-02**: Add W-TinyLFU+Doorkeeper variant (gated by constructor flag)
-- [ ] **DOOR-03**: Doorkeeper ablation figure: W-TinyLFU ± Doorkeeper on both workloads
+- [x] **DOOR-02**: Add W-TinyLFU+Doorkeeper variant (gated by constructor flag) (verified Phase 4 Plan 05 — WTinyLFUCache ctor extended with 3rd param `bool use_doorkeeper=false` at include/wtinylfu.h commit a43f032; make_policy branch `wtinylfu-dk` dispatches to `std::make_unique<WTinyLFUCache>(capacity, n_obj_hint, /*use_doorkeeper=*/true)` at src/main.cpp commit ff660b1; default preserves Phase 2 bit-identity — verified via scripts/check_wtlfu_acceptance.py exit 0 on results/congress and legacy `wtinylfu` CSV rows labeled "W-TinyLFU"; name() ternary returns "W-TinyLFU+DK" when flag true; D-09 CMS on_age_cb_ callback registered only when flag true so halve_all_ fires doorkeeper_.clear() in lockstep; L-12 stats single-source invariant grep record(true|false) in wtinylfu.h == 4 UNCHANGED from Phase 2; admission logic (admit_candidate_to_main_) UNCHANGED per D-10)
+- [x] **DOOR-03**: Doorkeeper ablation figure: W-TinyLFU ± Doorkeeper on both workloads (verified Phase 4 Plan 05 — `make ablation-doorkeeper` runs --alpha-sweep --policies wtinylfu,wtinylfu-dk twice with per-workload output to results/{congress,court}/ablation_doorkeeper.csv (14 data rows each = 2 policies × 7 alphas); `make plots WORKLOAD=congress && make plots WORKLOAD=court` produces both results/{congress,court}/figures/ablation_doorkeeper.pdf via plot_ablation_doorkeeper 2-panel function with shared brown color + solid-vs-dashed linestyle distinction; headline finding: DK effect is context-dependent with gap at alpha extremes, -0.72pp peak win at Court α=1.1 and +0.52pp slight loss at Court α=0.6, Congress within ±0.22pp noise — empirical validation of Einziger-Friedman §4.3 paper-faithful pre-CMS filter with marginal hedge on heavy-tailed Court trace)
 
 ### CourtListener trace (TRACE-xx)
 
@@ -128,8 +128,8 @@ All 29 v1 requirements below are mapped to exactly one Milestone 2 phase. See `.
 | SHARDS-02   | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | SHARDS-03   | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | DOOR-01     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
-| DOOR-02     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
-| DOOR-03     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Pending |
+| DOOR-02     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
+| DOOR-03     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | ABLA-01     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | ABLA-02     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | ANAL-01     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
