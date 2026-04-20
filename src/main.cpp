@@ -68,6 +68,14 @@ static std::unique_ptr<CachePolicy> make_policy(const std::string& name, uint64_
     if (name == "fifo")     return std::make_unique<FIFOCache>(capacity);
     if (name == "clock")    return std::make_unique<CLOCKCache>(capacity);
     if (name == "s3fifo")   return std::make_unique<S3FIFOCache>(capacity);
+    // Phase 4 Axis C (D-11 / ABLA-01): S3-FIFO small-queue-ratio ablation
+    // variants. Pass the explicit small_frac + display-name override via the
+    // delegating ctor in include/cache.h so CSV `policy` rows carry the
+    // distinguishable variant name. Legacy "s3fifo" branch above is unchanged
+    // — it uses the default-arg ctor and preserves the "S3-FIFO" label.
+    if (name == "s3fifo-5")  return std::make_unique<S3FIFOCache>(capacity, 0.05, "S3-FIFO-5");
+    if (name == "s3fifo-10") return std::make_unique<S3FIFOCache>(capacity, 0.10, "S3-FIFO-10");
+    if (name == "s3fifo-20") return std::make_unique<S3FIFOCache>(capacity, 0.20, "S3-FIFO-20");
     if (name == "sieve")    return std::make_unique<SIEVECache>(capacity);
     if (name == "wtinylfu") return std::make_unique<WTinyLFUCache>(capacity, n_objects_hint);
     return nullptr;
@@ -220,8 +228,12 @@ int main(int argc, char* argv[]) {
         std::cout << std::setw(12) << "Cache%";
         for (auto& pn : policy_names) {
             std::string label = pn;
-            if (pn == "s3fifo")        label = "S3-FIFO";
-            else if (pn == "wtinylfu") label = "W-TinyLFU";
+            if (pn == "s3fifo")         label = "S3-FIFO";
+            // Phase 4 Axis C (D-11 / ABLA-01): S3-FIFO ablation variants.
+            else if (pn == "s3fifo-5")  label = "S3-FIFO-5";
+            else if (pn == "s3fifo-10") label = "S3-FIFO-10";
+            else if (pn == "s3fifo-20") label = "S3-FIFO-20";
+            else if (pn == "wtinylfu")  label = "W-TinyLFU";
             else for (auto& c : label) c = toupper(c);
             std::cout << std::setw(10) << label;
         }
@@ -270,8 +282,12 @@ int main(int argc, char* argv[]) {
         std::cout << std::setw(8) << "Alpha";
         for (auto& pn : policy_names) {
             std::string label = pn;
-            if (pn == "s3fifo")        label = "S3-FIFO";
-            else if (pn == "wtinylfu") label = "W-TinyLFU";
+            if (pn == "s3fifo")         label = "S3-FIFO";
+            // Phase 4 Axis C (D-11 / ABLA-01): S3-FIFO ablation variants.
+            else if (pn == "s3fifo-5")  label = "S3-FIFO-5";
+            else if (pn == "s3fifo-10") label = "S3-FIFO-10";
+            else if (pn == "s3fifo-20") label = "S3-FIFO-20";
+            else if (pn == "wtinylfu")  label = "W-TinyLFU";
             else for (auto& c : label) c = toupper(c);
             std::cout << std::setw(10) << label;
         }

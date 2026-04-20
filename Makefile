@@ -10,7 +10,7 @@ SOURCES := $(wildcard $(SRCDIR)/*.cpp)
 OBJECTS := $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SOURCES))
 TARGET  := cache_sim
 
-.PHONY: all clean run run-sweep plots test shards-large phase-04
+.PHONY: all clean run run-sweep plots test shards-large phase-04 ablation-s3fifo
 
 all: $(TARGET)
 
@@ -145,8 +145,29 @@ shards-large: $(TARGET) traces/shards_large.csv
 	            --output-dir results/shards_large
 	@echo "=== shards-large complete. Figures via 'make plots WORKLOAD=shards_large' ==="
 
-# Convenience: all Phase 4 axes in sequence. Plans 04-02..05 will append
-# their own dependencies (ablation-doorkeeper, ablation-s3fifo, ablation-sieve)
-# to this list as they land.
-phase-04: shards-large
-	@echo "phase-04 step shards-large complete"
+# ==================== Phase 4 — Axis C: S3-FIFO small-queue ratio ablation (D-11, D-13, D-14, D-17) ====================
+# Runs --alpha-sweep with the 3 small_frac variants on Congress AND Court at
+# fixed 1% cache (src/main.cpp alpha-sweep path uses wb/100 for cache size
+# per D-13). After each invocation, renames the produced alpha_sensitivity.csv
+# to ablation_s3fifo.csv so the ablation output is namespaced and a subsequent
+# `make run-sweep` does not clobber it.
+ablation-s3fifo: $(TARGET)
+	mkdir -p results/congress results/court
+	@echo "=== Ablation s3fifo: Congress trace ==="
+	./$(TARGET) --trace traces/congress_trace.csv --replay-zipf \
+	            --alpha-sweep --policies s3fifo-5,s3fifo-10,s3fifo-20 \
+	            --output-dir results/congress
+	@mv results/congress/alpha_sensitivity.csv results/congress/ablation_s3fifo.csv
+	@echo ""
+	@echo "=== Ablation s3fifo: Court trace ==="
+	./$(TARGET) --trace traces/court_trace.csv --replay-zipf \
+	            --alpha-sweep --policies s3fifo-5,s3fifo-10,s3fifo-20 \
+	            --output-dir results/court
+	@mv results/court/alpha_sensitivity.csv results/court/ablation_s3fifo.csv
+	@echo "=== ablation-s3fifo complete; figures via 'make plots WORKLOAD=congress && make plots WORKLOAD=court' ==="
+
+# Convenience: all Phase 4 axes in sequence. Plans 04-04/04-05 will append
+# their own dependencies (ablation-sieve, ablation-doorkeeper) to this list as
+# they land.
+phase-04: shards-large ablation-s3fifo
+	@echo "phase-04 step shards-large + ablation-s3fifo complete"
