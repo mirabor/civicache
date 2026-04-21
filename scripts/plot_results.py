@@ -632,6 +632,266 @@ def plot_ablation_doorkeeper(figures_dir, congress_dir="results/congress",
     print(f"  Saved {out}")
 
 
+# ==================== Phase 5 — Cross-Workload Comparison (ANAL-01) ====================
+# The 4 functions below read Plan 05-04's aggregated CSVs and emit figures into
+# results/compare/figures/ (NOT the current --workload's figures dir) per D-09.
+# All 4 silently skip when aggregated CSVs are missing, matching the existing
+# plot_shards_mrc_overlay partial-data pattern.
+#
+# Critical invariant (T-05-05-01): these functions MUST reference the locked
+# POLICY_COLORS and POLICY_MARKERS dicts at lines 45-94 via .get(policy, fallback).
+# Never redeclare; never override locally; never add new keys.
+
+_COMPARE_FIGURES_DIR = os.path.join("results", "compare", "figures")
+_COMPARE_AGGREGATED_DIR = os.path.join("results", "compare", "aggregated")
+
+
+def _load_aggregated(stem):
+    """Return (congress_df, court_df) for mrc or alpha_sensitivity.
+    Returns (None, None) when either aggregated CSV is missing (graceful skip).
+    """
+    cong_path = os.path.join(_COMPARE_AGGREGATED_DIR, "congress", f"{stem}_aggregated.csv")
+    crt_path = os.path.join(_COMPARE_AGGREGATED_DIR, "court", f"{stem}_aggregated.csv")
+    if not os.path.exists(cong_path) or not os.path.exists(crt_path):
+        return None, None
+    return pd.read_csv(cong_path), pd.read_csv(crt_path)
+
+
+def plot_compare_mrc_2panel(figures_dir=_COMPARE_FIGURES_DIR):
+    """Canonical DOC-02 figure: Congress | Court MRC with ±1σ CI bands (D-03/D-04 fig 1).
+
+    Reads results/compare/aggregated/{congress,court}/mrc_aggregated.csv.
+    ±1σ bands via fill_between(mean-std, mean+std, alpha=0.2).
+    """
+    cong_df, crt_df = _load_aggregated("mrc")
+    if cong_df is None:
+        print(f"  Skipping compare_mrc_2panel: {_COMPARE_AGGREGATED_DIR} not populated")
+        return
+    os.makedirs(figures_dir, exist_ok=True)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5), sharey=True)
+    for ax, df, title in [(ax1, cong_df, "Congress"), (ax2, crt_df, "Court")]:
+        for policy in sorted(df["policy"].unique()):
+            sub = df[df["policy"] == policy].sort_values("cache_frac")
+            color = POLICY_COLORS.get(policy, "gray")
+            marker = POLICY_MARKERS.get(policy, "x")
+            ax.plot(sub["cache_frac"] * 100, sub["mean"],
+                    marker=marker, markersize=5, label=policy,
+                    color=color, linewidth=1.5)
+            # D-03: ±1σ CI band via fill_between (std is sample stdev from Plan 05-04).
+            ax.fill_between(sub["cache_frac"] * 100,
+                            sub["mean"] - sub["std"],
+                            sub["mean"] + sub["std"],
+                            color=color, alpha=0.2)
+        ax.set_xlabel("Cache Size (% of working set)")
+        ax.set_title(title)
+        ax.set_ylim(bottom=0)
+    ax1.set_ylabel("Miss Ratio")
+    ax2.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
+    fig.suptitle("Cross-Workload MRC Comparison (5-seed mean ± 1σ)")
+
+    out = os.path.join(figures_dir, "compare_mrc_2panel.pdf")
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {out}")
+
+
+def plot_compare_policy_delta(figures_dir=_COMPARE_FIGURES_DIR):
+    """Court − Congress miss_ratio per policy vs cache_frac (D-04 fig 2).
+
+    Answers: does this policy generalize across workloads?
+    """
+    cong_df, crt_df = _load_aggregated("mrc")
+    if cong_df is None:
+        print(f"  Skipping compare_policy_delta: aggregated CSVs missing")
+        return
+    os.makedirs(figures_dir, exist_ok=True)
+
+    # Merge on (cache_frac, policy) to compute delta.
+    merged = cong_df.merge(crt_df, on=["cache_frac", "policy"],
+                           suffixes=("_cong", "_court"))
+    merged["delta"] = merged["mean_court"] - merged["mean_cong"]
+
+    fig, ax = plt.subplots(figsize=(7, 4.5))
+    for policy in sorted(merged["policy"].unique()):
+        sub = merged[merged["policy"] == policy].sort_values("cache_frac")
+        color = POLICY_COLORS.get(policy, "gray")
+        marker = POLICY_MARKERS.get(policy, "x")
+        ax.plot(sub["cache_frac"] * 100, sub["delta"],
+                marker=marker, markersize=5, label=policy,
+                color=color, linewidth=1.5)
+    ax.axhline(0, color="black", linewidth=0.8, linestyle="--")
+    ax.set_xlabel("Cache Size (% of working set)")
+    ax.set_ylabel("Court − Congress miss ratio")
+    ax.set_title("Cross-Workload Policy Delta")
+    ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
+
+    out = os.path.join(figures_dir, "compare_policy_delta.pdf")
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {out}")
+
+
+def plot_compare_mrc_overlay(figures_dir=_COMPARE_FIGURES_DIR):
+    """Single-panel overlay: solid=Congress, dashed=Court, 12 lines (D-04 fig 3).
+
+    Denser view of workload-invariance vs workload-specific behavior.
+    """
+    cong_df, crt_df = _load_aggregated("mrc")
+    if cong_df is None:
+        print(f"  Skipping compare_mrc_overlay: aggregated CSVs missing")
+        return
+    os.makedirs(figures_dir, exist_ok=True)
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    for policy in sorted(cong_df["policy"].unique()):
+        color = POLICY_COLORS.get(policy, "gray")
+        marker = POLICY_MARKERS.get(policy, "x")
+        c_sub = cong_df[cong_df["policy"] == policy].sort_values("cache_frac")
+        k_sub = crt_df[crt_df["policy"] == policy].sort_values("cache_frac")
+        ax.plot(c_sub["cache_frac"] * 100, c_sub["mean"],
+                marker=marker, markersize=5, color=color, linewidth=1.5,
+                linestyle="-", label=f"{policy} (Congress)")
+        ax.plot(k_sub["cache_frac"] * 100, k_sub["mean"],
+                marker=marker, markersize=5, color=color, linewidth=1.5,
+                linestyle="--", label=f"{policy} (Court)")
+    ax.set_xlabel("Cache Size (% of working set)")
+    ax.set_ylabel("Miss Ratio")
+    ax.set_title("Cross-Workload MRC Overlay (solid=Congress, dashed=Court)")
+    ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=8)
+    ax.set_ylim(bottom=0)
+
+    out = os.path.join(figures_dir, "compare_mrc_overlay.pdf")
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {out}")
+
+
+def plot_winner_per_regime_bar(figures_dir=_COMPARE_FIGURES_DIR):
+    """Grouped bar chart: 4 regimes × 2 workloads, winning policy per cell
+    (D-04 fig 4). Regime definitions per D-01:
+
+      * Small Cache:  cache_frac == 0.001 on both workloads (miss_ratio)
+      * High Skew:    mean miss_ratio averaged across α ∈ {1.0, 1.1, 1.2} per workload
+      * Mixed Sizes:  Court byte_miss_ratio at cache_frac == 0.01 (single-seed
+                      fallback — read from results/court/mrc.csv since Plan 05-04
+                      aggregates miss_ratio, not byte_miss_ratio; Congress has
+                      uniform sizes so is N/A for this regime)
+      * OHW Regime:   cache_frac == 0.01 on both workloads (miss_ratio)
+    """
+    mrc_cong, mrc_crt = _load_aggregated("mrc")
+    alpha_cong, alpha_crt = _load_aggregated("alpha_sensitivity")
+    if mrc_cong is None or alpha_cong is None:
+        print(f"  Skipping winner_per_regime_bar: aggregated CSVs missing")
+        return
+
+    # Mixed Sizes regime: read Court single-seed byte_miss_ratio at 1%.
+    court_single_path = os.path.join("results", "court", "mrc.csv")
+    court_single_df = None
+    if os.path.exists(court_single_path):
+        court_single_df = pd.read_csv(court_single_path)
+
+    os.makedirs(figures_dir, exist_ok=True)
+
+    def winner_on(df, filter_fn, value_col="mean"):
+        """Return (winner_policy, winner_value) on df rows matching filter_fn,
+        using argmin of `value_col` grouped by policy."""
+        sub = df[df.apply(filter_fn, axis=1)]
+        if sub.empty:
+            return (None, float("nan"))
+        per_policy = sub.groupby("policy")[value_col].mean()
+        winner = per_policy.idxmin()
+        return (winner, float(per_policy.min()))
+
+    # Compute winners per regime per workload.
+    regimes = [
+        ("Small Cache", "small"),
+        ("High Skew", "skew"),
+        ("Mixed Sizes", "mixed"),
+        ("OHW Regime", "ohw"),
+    ]
+
+    cong_winners = []
+    cong_values = []
+    crt_winners = []
+    crt_values = []
+
+    for label, key in regimes:
+        if key == "small":
+            cw, cv = winner_on(mrc_cong, lambda r: abs(r["cache_frac"] - 0.001) < 1e-9)
+            kw, kv = winner_on(mrc_crt,  lambda r: abs(r["cache_frac"] - 0.001) < 1e-9)
+        elif key == "skew":
+            cw, cv = winner_on(alpha_cong,
+                               lambda r: round(float(r["alpha"]), 2) in {1.0, 1.1, 1.2})
+            kw, kv = winner_on(alpha_crt,
+                               lambda r: round(float(r["alpha"]), 2) in {1.0, 1.1, 1.2})
+        elif key == "mixed":
+            # Congress N/A — uniform sizes workload per D-01.
+            cw, cv = (None, float("nan"))
+            if court_single_df is not None:
+                court_1pct = court_single_df[
+                    (court_single_df["cache_frac"].round(4) == 0.01)
+                ]
+                if not court_1pct.empty:
+                    best_idx = court_1pct["byte_miss_ratio"].idxmin()
+                    kw = court_1pct.loc[best_idx, "policy"]
+                    kv = float(court_1pct.loc[best_idx, "byte_miss_ratio"])
+                else:
+                    kw, kv = (None, float("nan"))
+            else:
+                kw, kv = (None, float("nan"))
+        elif key == "ohw":
+            cw, cv = winner_on(mrc_cong, lambda r: abs(r["cache_frac"] - 0.01) < 1e-9)
+            kw, kv = winner_on(mrc_crt,  lambda r: abs(r["cache_frac"] - 0.01) < 1e-9)
+        cong_winners.append(cw)
+        cong_values.append(cv)
+        crt_winners.append(kw)
+        crt_values.append(kv)
+
+    fig, ax = plt.subplots(figsize=(9, 4.5))
+    x = np.arange(len(regimes))
+    width = 0.35
+
+    # Bar colors: winner's POLICY_COLORS entry (gray fallback for unknown/None).
+    cong_colors = [POLICY_COLORS.get(w, "lightgray") for w in cong_winners]
+    crt_colors = [POLICY_COLORS.get(w, "lightgray") for w in crt_winners]
+    # Replace NaN bar heights with 0 for rendering (N/A cells).
+    cong_bars = [0 if np.isnan(v) else v for v in cong_values]
+    crt_bars = [0 if np.isnan(v) else v for v in crt_values]
+
+    b1 = ax.bar(x - width/2, cong_bars, width, color=cong_colors,
+                edgecolor="black", linewidth=0.5, label="Congress")
+    b2 = ax.bar(x + width/2, crt_bars, width, color=crt_colors,
+                edgecolor="black", linewidth=0.5, label="Court", alpha=0.85)
+
+    # Annotate each bar with the winning policy name.
+    for rect, policy in zip(b1, cong_winners):
+        if policy is None:
+            ax.text(rect.get_x() + rect.get_width()/2, 0.005, "N/A",
+                    ha="center", va="bottom", fontsize=8, style="italic")
+        else:
+            ax.text(rect.get_x() + rect.get_width()/2, rect.get_height(),
+                    policy, ha="center", va="bottom", fontsize=8, rotation=0)
+    for rect, policy in zip(b2, crt_winners):
+        if policy is None:
+            ax.text(rect.get_x() + rect.get_width()/2, 0.005, "N/A",
+                    ha="center", va="bottom", fontsize=8, style="italic")
+        else:
+            ax.text(rect.get_x() + rect.get_width()/2, rect.get_height(),
+                    policy, ha="center", va="bottom", fontsize=8, rotation=0)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels([r[0] for r in regimes], rotation=10, ha="right")
+    ax.set_ylabel("Winner Miss Ratio (lower = better)")
+    ax.set_title("Winner per Regime (D-01 regime definitions; 5-seed mean)")
+    ax.legend()
+
+    out = os.path.join(figures_dir, "winner_per_regime_bar.pdf")
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {out}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Plot cache simulation results")
     parser.add_argument("--workload", default="congress",
@@ -667,6 +927,13 @@ def main():
     plot_ablation_s3fifo(figures_dir)
     plot_ablation_sieve(figures_dir)
     plot_ablation_doorkeeper(figures_dir)
+    # Phase 5 cross-workload comparison figures (D-04). Land in results/compare/figures/
+    # regardless of --workload. Silently skipped when results/compare/aggregated/
+    # is missing (i.e., Plan 05-04 hasn't been run).
+    plot_compare_mrc_2panel()
+    plot_compare_policy_delta()
+    plot_compare_mrc_overlay()
+    plot_winner_per_regime_bar()
     plot_workload(args.traces_dir, figures_dir, args.workload)
     print("Done.")
 
