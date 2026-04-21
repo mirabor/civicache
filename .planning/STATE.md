@@ -124,9 +124,9 @@ Items deferred to v2 (from REQUIREMENTS.md):
 
 ## Session Continuity
 
-Last session: 2026-04-21T00:30:00Z
-Stopped at: Phase 5 FULLY COMPLETE (6/6 plans, 4/4 SC verified, ANAL-01..04 satisfied) — ready for Phase 6 writeup + demo
-Resume: begin Phase 6 (DOC-02 final report paper, DOC-03 AI-use report with PROCESS.md 9-bug list, DOC-04 <60s demo.sh tested 3+ times); use `/gsd-discuss-phase 6` to gather context before planning
+Last session: 2026-04-21T01:30:00Z
+Stopped at: Phase 6 context gathered (19 decisions across 4 areas — paper narrative, AI-use report framing, figure curation, demo content + hedge)
+Resume: `/gsd-plan-phase 6` to create the executable plan set; CONTEXT.md locks the paper-leads-with-surprise-finding narrative + decision-log DOC-03 format + live-demo-with-recording-backup strategy
 
 ## Phase 5 Decisions (add to PROJECT.md Key Decisions)
 
