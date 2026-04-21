@@ -366,6 +366,108 @@ The analysis above maps to paper sections as follows:
 
 ---
 
+---
+
+## Addendum: Data-Hygiene Fixes (2026-04-21)
+
+### Gap 1 — Refreshed Court single-seed mrc.csv with all 6 policies
+
+`results/court/mrc.csv` was previously written by Phase 4's Doorkeeper ablation
+run and only contained W-TinyLFU + W-TinyLFU+DK rows. Fixed by running
+`make run-sweep WORKLOAD=court TRACE=traces/court_trace.csv` (4.5s wall-clock).
+
+**Mixed Sizes regime now compares the full base policy set.** Court byte-MRC at
+cache_frac=0.01, ordered by byte_miss_ratio:
+
+| Rank | Policy    | miss_ratio | byte_miss_ratio |
+|------|-----------|------------|-----------------|
+| 1    | W-TinyLFU | 0.783      | **0.284**       |
+| 2    | S3-FIFO   | 0.851      | 0.318           |
+| 3    | CLOCK     | 0.854      | 0.335           |
+| 4    | SIEVE     | 0.842      | 0.335           |
+| 5    | LRU       | 0.885      | 0.485           |
+| 6    | FIFO      | 0.894      | 0.576           |
+
+The winner_per_regime table's "Court Mixed Sizes = W-TinyLFU (0.284)" is
+unchanged — but now it's a *real* 6-policy comparison, not a degenerate
+single-entry pool. W-TinyLFU beats the next-best base policy (S3-FIFO) by 3.4pp
+on byte-miss. LRU and FIFO are dramatically worse (16-19pp gap vs W-TinyLFU) —
+classic evidence that naive recency can't keep the big hot document resident.
+
+### Gap 2 — Congress α ∈ {1.3, 1.4, 1.5} crossover test
+
+Ran `./cache_sim --seed 42 --alpha X --cache-sizes 0.01` for X ∈ {1.3, 1.4, 1.5}
+on Congress. **Single-seed data** — not multi-seed, but directly comparable to
+the existing alpha_sensitivity per-seed CSVs at α=1.2.
+
+W-TinyLFU vs SIEVE miss_ratio at cache_frac=0.01 on Congress (SIEVE minus
+W-TinyLFU; negative = SIEVE wins):
+
+| α   | W-TinyLFU | SIEVE    | Gap (SIEVE−WTLFU) | Winner (single-seed) |
+|-----|-----------|----------|-------------------|----------------------|
+| 1.0 | 0.467453  | 0.462781 | -0.0047           | SIEVE                |
+| 1.1 | 0.346493  | 0.344546 | -0.0019           | SIEVE                |
+| 1.2 | 0.247240  | 0.245621 | -0.0016           | SIEVE                |
+| 1.3 | 0.188202  | 0.186178 | -0.0020           | SIEVE                |
+| 1.4 | 0.143494  | 0.144336 | **+0.0008**       | W-TinyLFU (tiny)     |
+| 1.5 | 0.118610  | 0.119420 | **+0.0008**       | W-TinyLFU (tiny)     |
+
+### What this tells us
+
+**The crossover hypothesis partially holds.** At α ∈ {1.4, 1.5} on Congress,
+W-TinyLFU does finally edge ahead of SIEVE — but by 0.0008 (less than 0.1pp),
+which is below the 5-seed standard deviation at these alphas (σ ≈ 0.007-0.010
+per Phase 5 aggregated data). **The crossover is not statistically meaningful
+at single-seed granularity.**
+
+The stronger conclusion is: **SIEVE and W-TinyLFU are functionally equivalent
+on Congress across the entire α range from 0.6 to 1.5.** The gap is always
+within noise. This extends the original Phase 5 finding — not just "tied at
+α ∈ {1.0, 1.1, 1.2}" but "tied across the full usable α range."
+
+Compare to Court, where W-TinyLFU's stable 4-5pp lead persists across every α
+we tested. The workload-characteristic × policy-mechanism interaction described
+in the main document is now backed by data across a wider α grid.
+
+### Implications for the paper
+
+The paper's mechanism narrative strengthens:
+
+> "On Congress (α_raw=0.23, near-uniform raw trace, uniform object sizes),
+> SIEVE's visited-bit is functionally equivalent to W-TinyLFU's Count-Min
+> Sketch across α ∈ [0.6, 1.5]. On Court (α_raw=1.03, long-tail sizes, real
+> raw locality), W-TinyLFU's frequency gradient captures information SIEVE's
+> binary signal cannot, producing a stable 4-5pp byte-miss advantage. Choice
+> of admission mechanism matters *only* when the raw workload provides a
+> frequency gradient to exploit."
+
+This is the more nuanced claim the professor's midpoint feedback asked for —
+explaining *why* one algorithm works better, grounded in workload traits.
+
+### What's still deferred to v2
+
+- **Multi-seed α ∈ {1.3, 1.4, 1.5} on Congress.** Single-seed data is
+  suggestive but not CI-backed. Adding these three points to
+  `run_multiseed_sweep.py`'s grid is trivial (one `--seed` loop × 3 new α values
+  ≈ 30 seconds of wall-clock), but would require regenerating the
+  alpha_sensitivity_aggregated CSVs and updating compare_mrc_2panel.pdf axis
+  limits. Deferred for focus.
+
+- **Multi-seed byte-MRC aggregation on Court.** The per-seed CSVs at
+  `results/compare/multiseed/court/mrc_seed*.csv` already contain
+  `byte_miss_ratio` — Plan 05-04's `compare_workloads.py::aggregate` only uses
+  `miss_ratio`. A one-line change to also aggregate byte_miss_ratio would give
+  CI bands on the 462KB-outlier-dominated metric. Deferred — the single-seed
+  number is already documented with its σ=0.21 caveat.
+
+- **Code review WR-01 / WR-02** latent-coupling fixes in plot_results.py.
+  Deferred to Phase 6 (the fixes only manifest if future work extends the sweep
+  to include ablation variants).
+
+_Addendum generated: 2026-04-21 after data-hygiene refresh_
+
+---
+
 _Generated: 2026-04-21 from 5-seed aggregated CSVs at results/compare/aggregated/_
 _Author: Claude (Phase 5 analysis companion)_
 _Feeds: Phase 6 DOC-02 narrative_
