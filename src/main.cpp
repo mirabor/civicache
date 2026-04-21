@@ -25,6 +25,7 @@ static void print_usage(const char* prog) {
               << "  --output-dir <dir>     Output directory (default: results)\n"
               << "  --num-requests <n>     Number of synthetic requests (default: 500000)\n"
               << "  --num-objects <n>      Number of unique objects for synthetic trace (default: 50000)\n"
+              << "  --seed <n>             RNG seed for Zipf trace + replay (default: 42)\n"
               << "  --alpha <a>            Zipf alpha for single run (default: 0.8)\n"
               << "  --alpha-sweep          Run alpha sensitivity sweep\n"
               << "  --shards               Run SHARDS MRC construction\n"
@@ -112,6 +113,7 @@ int main(int argc, char* argv[]) {
     std::vector<double> shards_rates = {0.001, 0.01, 0.1};  // D-18 default preserves Phase 1 back-compat
     uint64_t num_requests = 500000;
     uint64_t num_objects = 50000;
+    uint64_t seed = 42;                                      // Plan 05-01 / D-06: new --seed flag; default preserves Phase 1-4 back-compat (header defaults are also 42)
     uint64_t trace_limit = 0;                                // D-03: 0 means "no limit"
     std::string emit_trace_path;                             // D-15: when non-empty, generate + write + exit
     double alpha = 0.8;
@@ -135,6 +137,8 @@ int main(int argc, char* argv[]) {
             num_requests = std::stoull(argv[++i]);
         } else if (std::strcmp(argv[i], "--num-objects") == 0 && i + 1 < argc) {
             num_objects = std::stoull(argv[++i]);
+        } else if (std::strcmp(argv[i], "--seed") == 0 && i + 1 < argc) {
+            seed = std::stoull(argv[++i]);
         } else if (std::strcmp(argv[i], "--alpha") == 0 && i + 1 < argc) {
             alpha = std::stod(argv[++i]);
         } else if (std::strcmp(argv[i], "--alpha-sweep") == 0) {
@@ -197,7 +201,7 @@ int main(int argc, char* argv[]) {
             std::cerr << "Failed to load trace.\n";
             return 1;
         }
-        trace = replay_zipf(raw_trace, num_requests, alpha);
+        trace = replay_zipf(raw_trace, num_requests, alpha, seed);
     } else if (!trace_file.empty()) {
         std::cout << "Loading trace: " << trace_file << "\n";
         trace = load_trace(trace_file);
@@ -208,7 +212,7 @@ int main(int argc, char* argv[]) {
     } else {
         std::cout << "Generating synthetic Zipf trace (alpha=" << alpha
                   << ", n=" << num_requests << ", objects=" << num_objects << ")\n";
-        trace = generate_zipf_trace(num_requests, num_objects, alpha);
+        trace = generate_zipf_trace(num_requests, num_objects, alpha, seed);
     }
 
     // D-03: --limit truncates the trace BEFORE any processing. Used by the
@@ -327,13 +331,13 @@ int main(int argc, char* argv[]) {
         // work 7x per sweep. Empty when the raw_trace fallback is in use.
         std::vector<std::pair<std::string, uint64_t>> prepared_objects;
         if (!raw_trace.empty()) {
-            prepared_objects = prepare_objects(raw_trace);  // default seed=42
+            prepared_objects = prepare_objects(raw_trace, seed);  // Plan 05-01: thread --seed (default 42)
         }
 
         for (double a : alphas) {
             auto sweep_trace = !prepared_objects.empty()
-                ? generate_replay_trace(prepared_objects, num_requests, a)
-                : generate_zipf_trace(num_requests, num_objects, a);
+                ? generate_replay_trace(prepared_objects, num_requests, a, seed)
+                : generate_zipf_trace(num_requests, num_objects, a, seed);
             uint64_t wb = working_set_bytes(sweep_trace);
             uint64_t cache_bytes = wb / 100;
             // D-02: sweep traces resample the SAME prepared_objects key set,
