@@ -98,7 +98,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. The final policy comparison was run with 5 seeds per (policy, cache-size, α) cell on both workloads; plots show mean ± std-dev bands; differences smaller than 2σ are flagged not-significant
   3. A workload-characterization table exists with α, OHW ratio, unique objects, median size, 95th-percentile size, and working-set bytes — Congress and Court side by side
   4. A winner-per-regime table/figure exists identifying which policy wins under which conditions (small cache, high skew, mixed sizes, OHW regime) across both workloads
-**Plans**: TBD
+**Plans**: 6 plans across 4 execution waves
+- [ ] 05-01-PLAN.md — Add `--seed N` CLI flag to cache_sim; thread into Zipf/replay call sites (Wave 1, autonomous, ANAL-02)
+- [ ] 05-02-PLAN.md — Regenerate results/congress/workload_stats.json via existing workload_stats_json.py (Wave 1, autonomous, ANAL-03)
+- [ ] 05-03-PLAN.md — Build scripts/run_multiseed_sweep.py orchestrator; produce 20 per-seed CSVs under results/compare/multiseed/ (Wave 2, depends on 05-01, autonomous, ANAL-02)
+- [ ] 05-04-PLAN.md — Build scripts/compare_workloads.py aggregation pipeline: 5-seed mean/std + Welch's t-test via scipy; emits 4 aggregated CSVs (Wave 3, depends on 05-03, autonomous, ANAL-01 + ANAL-02)
+- [ ] 05-05-PLAN.md — Add 4 cross-workload plot functions to scripts/plot_results.py (compare_mrc_2panel with ±1σ bands = canonical DOC-02 figure, compare_policy_delta, compare_mrc_overlay, winner_per_regime_bar) (Wave 3, depends on 05-03, autonomous, ANAL-01)
+- [ ] 05-06-PLAN.md — Extend compare_workloads.py with ANAL-03 characterization table + ANAL-04 winner-per-regime table (markdown + JSON per D-08); add scripts/check_anal_acceptance.py exit gate (Wave 4, depends on 05-02, 05-04, 05-05, autonomous, ANAL-03 + ANAL-04)
 
 ### Phase 6: Writeup & Demo
 **Goal**: The three final deliverables the professor evaluates — class-report paper, AI-use report (specifically requested), and a live <60s demo that actually works on the target laptop.
@@ -121,5 +127,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. W-TinyLFU Core | 6/6 | Complete | 2026-04-19 |
 | 3. CourtListener Trace Collection & Replay Sweep | 3/3 | Complete | 2026-04-19 |
 | 4. SHARDS Large-Scale Validation & Ablations | 5/5 | Complete | 2026-04-20 |
-| 5. Cross-Workload Analysis Infrastructure | 0/TBD | Not started | - |
+| 5. Cross-Workload Analysis Infrastructure | 0/6 | Planned | - |
 | 6. Writeup & Demo | 0/TBD | Not started | - |
