@@ -72,10 +72,10 @@
 
 ### Analysis infrastructure (ANAL-xx)
 
-- [ ] **ANAL-01**: `scripts/compare_workloads.py` — reads both result trees, produces cross-workload comparison plots and summary tables
-- [ ] **ANAL-02**: Multi-seed runs (5 seeds) for all final policy comparisons with confidence intervals
-- [ ] **ANAL-03**: Cross-workload table: workload characterization (α, OHW, size dist, working set) for Congress vs Court
-- [ ] **ANAL-04**: Winner-per-regime analysis (which policy wins when: small cache, high skew, mixed sizes, etc.)
+- [x] **ANAL-01**: `scripts/compare_workloads.py` — reads both result trees, produces cross-workload comparison plots and summary tables (verified Phase 5 Plans 05-04+05-05 — scripts/compare_workloads.py 472-line aggregation pipeline reads 20 per-seed CSVs, emits 4 aggregated CSVs at results/compare/aggregated/{congress,court}/{mrc,alpha_sensitivity}_aggregated.csv + 4 table artifacts; 4 cross-workload plot functions in scripts/plot_results.py emit compare_mrc_2panel.pdf [canonical DOC-02 with ±1σ bands], compare_policy_delta.pdf, compare_mrc_overlay.pdf, winner_per_regime_bar.pdf at results/compare/figures/)
+- [x] **ANAL-02**: Multi-seed runs (5 seeds) for all final policy comparisons with confidence intervals (verified Phase 5 Plans 05-01+05-03+05-04 — src/main.cpp gains `--seed N` CLI flag threading into 5 Zipf/replay call sites; scripts/run_multiseed_sweep.py produces 20 per-seed CSVs at results/compare/multiseed/{congress,court}/{mrc,alpha_sensitivity}_seed{42,7,13,23,31}.csv in 58.2s wall-clock; scripts/compare_workloads.py runs scipy.stats.ttest_ind(equal_var=False) Welch's per D-02 with p<0.05 significance flagging; W-TinyLFU dominance over LRU on Congress formally confirmed p∈[1.2e-06, 8.7e-08] at every α in {0.6..1.2})
+- [x] **ANAL-03**: Cross-workload table: workload characterization (α, OHW, size dist, working set) for Congress vs Court (verified Phase 5 Plans 05-02+05-06 — results/congress/workload_stats.json regenerated [10 keys matching Court schema; empirical α_mle=0.231, NOT 0.797 — plan author misread the MLE-recovers-synthetic-α=0.8 regression test as raw-trace characterization]; results/compare/workload_characterization.{md,json} assembled side-by-side with 10 D-08-locked rows per workload)
+- [x] **ANAL-04**: Winner-per-regime analysis (which policy wins when: small cache, high skew, mixed sizes, etc.) (verified Phase 5 Plan 05-06 — results/compare/winner_per_regime.{md,json} with 4 D-01 regime rows × 2 workload columns; BASE_POLICIES=["LRU","FIFO","CLOCK","S3-FIFO","SIEVE","W-TinyLFU"] filter excludes ablation variants; **named winners**: Small Cache Congress=W-TinyLFU(0.869)/Court=W-TinyLFU(0.831); High Skew Congress=SIEVE(0.351)/Court=W-TinyLFU(0.386) — SIEVE winning Congress high-α is surprising given Phase 2 W-TinyLFU dominance, attributable to mean-across-α favoring SIEVE's visited-bit scan-resistance when α includes near-uniform values; Mixed Sizes Congress=N/A per D-01/Court=W-TinyLFU(0.284 byte_miss_ratio single-seed); OHW Regime Congress=W-TinyLFU(0.712)/Court=W-TinyLFU(0.728); winner_per_regime_bar.pdf at results/compare/figures/ mirrors the markdown)
 
 ### Writeup (DOC-xx)
 
@@ -132,10 +132,10 @@ All 29 v1 requirements below are mapped to exactly one Milestone 2 phase. See `.
 | DOOR-03     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | ABLA-01     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
 | ABLA-02     | Phase 4 — SHARDS Large-Scale Validation & Ablations | Complete |
-| ANAL-01     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
-| ANAL-02     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
-| ANAL-03     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
-| ANAL-04     | Phase 5 — Cross-Workload Analysis Infrastructure | Pending |
+| ANAL-01     | Phase 5 — Cross-Workload Analysis Infrastructure | Complete |
+| ANAL-02     | Phase 5 — Cross-Workload Analysis Infrastructure | Complete |
+| ANAL-03     | Phase 5 — Cross-Workload Analysis Infrastructure | Complete |
+| ANAL-04     | Phase 5 — Cross-Workload Analysis Infrastructure | Complete |
 | DOC-02      | Phase 6 — Writeup & Demo | Pending |
 | DOC-03      | Phase 6 — Writeup & Demo | Pending |
 | DOC-04      | Phase 6 — Writeup & Demo | Pending |

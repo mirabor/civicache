@@ -59,8 +59,8 @@ Everything else — second trace, W-TinyLFU, SHARDS rigor — strengthens this c
 
 **Analysis & writeup:**
 
-- [ ] **ANAL-01**: Cross-workload comparison: Congress vs court records (same 6 policies, 2 traces)
-- [ ] **ANAL-02**: Discuss when each policy wins (skew, size distribution, OHW regime)
+- [x] **ANAL-01**: Cross-workload comparison: Congress vs court records (same 6 policies, 2 traces) — validated Phase 5 Plans 05-04+05-05: scripts/compare_workloads.py aggregation pipeline + 4 cross-workload figures (compare_mrc_2panel with ±1σ bands = canonical DOC-02 figure, compare_policy_delta, compare_mrc_overlay, winner_per_regime_bar) produced and regeneration verified
+- [x] **ANAL-02**: Discuss when each policy wins (skew, size distribution, OHW regime) — validated Phase 5 Plans 05-03+05-04: 20 per-seed CSVs (5 seeds × 2 workloads × 2 stems) + Welch's t-test via scipy.stats.ttest_ind(equal_var=False) flagging n.s. at p≥0.05; W-TinyLFU dominance over LRU on Congress formally confirmed with p∈[1.2e-06, 8.7e-08] at every α in {0.6..1.2}
 - [ ] **DOC-02**: Final report (flexible length, class-report style)
 - [ ] **DOC-03**: AI-use report documenting what worked/didn't with Claude Code (professor request)
 - [ ] **DOC-04**: Live-demo script for presentation (simulator runs with parameter sweeps)
@@ -82,7 +82,9 @@ Everything else — second trace, W-TinyLFU, SHARDS rigor — strengthens this c
 | W-TinyLFU (vs just admission filter or basic TinyLFU) | Most impressive of the three options; matches what Caffeine ships; adding a frequency sketch is good systems-course material | — Pending |
 | Larger SHARDS validation trace (synthetic, not real) | Real traces are rate-limited; synthetic gives enough scale (1M+ accesses) to meaningfully test 0.1% and 0.01% sampling | — Pending |
 | Live simulator demo | More engaging than static slides; shows the system working; parameter sweeps let us illustrate findings in real time | — Pending |
-| Replay-Zipf kept as primary analysis approach | Raw traces have near-zero temporal locality because they're client-generated random queries; replay-Zipf uses real keys/sizes with controlled popularity, which is what actually makes policy comparison meaningful | ✓ Validated in existing work |
+| Replay-Zipf kept as primary analysis approach | Raw traces have near-zero temporal locality because they're client-generated random queries; replay-Zipf uses real keys/sizes with controlled popularity, which is what actually makes policy comparison meaningful | ✓ Validated in existing work; further confirmed Phase 5: raw Congress trace α_mle=0.231 (near-uniform), near-zero OHW (0.989 = 98.9% one-hit-wonders), so replay-Zipf's controlled α sweep is the only way to get a meaningful policy comparison |
+| 5-seed CI over single-seed runs for final comparison | Single-seed runs can't distinguish real policy differences from RNG noise. 5 seeds is the smallest set that makes Welch's t-test credible at p<0.05 without over-investing in sweep wall-clock. | ✓ Validated Phase 5 Plans 05-03/05-04: 5 seeds × 2 workloads × 2 sweeps = 10 cache_sim invocations in 58.2s wall-clock (30× under budget); ±1σ bands visually separate policies on the canonical 2-panel DOC-02 figure |
+| BASE_POLICIES restriction on regime analysis (exclude ablation variants) | D-01 regimes define the *main story* — 6 base policies compared. Ablations (S3-FIFO-5/20, SIEVE-NoProm, W-TinyLFU+DK) have their own Phase 4 figures and would muddy the regime-winner table. | ✓ Validated Phase 5 Plan 05-06: BASE_POLICIES=["LRU","FIFO","CLOCK","S3-FIFO","SIEVE","W-TinyLFU"] filter applied in _winner_in_group; zero ablation contamination in winner_per_regime.{md,json} |
 
 ## Risks
 
@@ -109,4 +111,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-18 after Phase 1 completion (REFACTOR-01..04, TRACE-03, TRACE-04 verified)*
+*Last updated: 2026-04-21 after Phase 5 completion (ANAL-01..04 verified; cross-workload analysis infrastructure complete; 5-seed Welch's t-test + ±1σ CI bands + workload characterization table + winner-per-regime analysis all landed under results/compare/)*
