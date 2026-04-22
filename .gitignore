@@ -54,6 +54,16 @@ __pycache__/
 *.synctex.gz
 progress.log
 
+# Phase 6 LaTeX build artifacts (docs/ subdirectory)
+docs/*.aux
+docs/*.fdb_latexmk
+docs/*.fls
+docs/*.log
+docs/*.out
+docs/*.synctex.gz
+# Rendered paper PDF — regenerable via `make paper`; uncomment to commit
+# docs/DOC-02-final-report.pdf
+
 # Secrets
 .env
 
