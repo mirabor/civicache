@@ -223,3 +223,12 @@ phase-04: shards-large ablation-s3fifo ablation-sieve ablation-doorkeeper
 # .PHONY for paper + demo declared on line 13 (owned by Plan 01 per revision B-1).
 paper:
 	cd docs && latexmk -pdf DOC-02-final-report.tex
+
+# ==================== Phase 6 — Live demo (DOC-04) ====================
+# Invokes the repo-root demo.sh which runs a <60s 6-policy sweep on a
+# pre-generated 5K-request Congress slice (traces/demo_trace.csv).
+# See demo.sh for the full pipeline; see demo-rehearsal.log (Plan 07) for
+# timing evidence.
+# .PHONY for `demo` is declared on line 13 (owned by Plan 01 per revision B-1).
+demo:
+	./demo.sh
