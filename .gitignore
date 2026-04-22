@@ -35,6 +35,8 @@ results/**
 # Phase 3 (D-15): committed trace + collection report
 !traces/court_trace.csv
 !traces/court_pilot.csv
+# Phase 6 (D-19): committed ~5K-request demo trace slice
+!traces/demo_trace.csv
 !results/court/
 !results/court/collection_report.txt
 !results/court/pilot_report.txt
