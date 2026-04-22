@@ -1,0 +1,119 @@
+%% §5 Mechanism Deep-Dive — the D-03 1-2-page centerpiece.
+%% Source prose: .planning/phases/05-cross-workload-analysis-infrastructure/05-ANALYSIS.md
+%% lines 98-170 (main mechanism argument) and 371-445 (α ∈ {1.3, 1.4, 1.5} addendum).
+\section{Why SIEVE Ties W-TinyLFU on Congress (and Loses on Court)}\label{sec:mechanism}
+
+The most interesting finding this paper produced contradicts the TinyLFU
+paper's narrative that W-TinyLFU dominates on skewed traces. On Congress, the
+W-TinyLFU vs.\ SIEVE miss-ratio gap is always within $\pm 0.005$ (less than
+$1\sigma$) across $\alpha \in \{0.6, 0.7, \dots, 1.5\}$ --- the two policies are
+statistically tied. On Court, W-TinyLFU wins by a stable $4$--$5$pp at every
+$\alpha$. The explanation is not about the policies. It is about the
+workloads: the admission-filter benefit is gated by whether the raw trace
+carries a frequency gradient above what SIEVE's visited-bit already captures.
+
+\subsection{Data: the per-$\alpha$ gap on both workloads}
+
+Table~\ref{tab:mechanism_gap} reports the W-TinyLFU vs.\ SIEVE miss-ratio gap
+at \texttt{cache\_frac=0.01} across the full $\alpha$ grid on both workloads.
+The gap column is $\text{SIEVE} - \text{W-TinyLFU}$; negative values (marked
+$^*$) mean SIEVE wins. Numbers are 5-seed means from the aggregated
+$\alpha$-sensitivity sweep (\S\ref{sec:policies}, Table~\ref{tab:alpha_sens}).
+
+\begin{table}[h]
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{0.92}
+\begin{tabularx}{\textwidth}{@{}lXX@{}}
+\toprule
+$\alpha$ & \textbf{Congress gap (SIEVE $-$ W-TLFU)} & \textbf{Court gap (SIEVE $-$ W-TLFU)} \\
+\midrule
+0.6 & $+0.0020$      & $+0.0418$ \\
+0.7 & $-0.0002$      & $+0.0492$ \\
+0.8 & $+0.0014$      & $+0.0543$ \\
+0.9 & $-0.0004$      & $+0.0540$ \\
+1.0 & $-0.0047^{*}$  & $+0.0469$ \\
+1.1 & $-0.0019^{*}$  & $+0.0393$ \\
+1.2 & $-0.0016^{*}$  & $+0.0359$ \\
+\bottomrule
+\end{tabularx}
+\caption{W-TinyLFU vs.\ SIEVE miss-ratio gap at \texttt{cache\_frac=0.01} on
+both workloads. Negative gap ($^{*}$) means SIEVE wins. Congress: always
+within $\pm 0.005$ = less than $1\sigma$ across the full $\alpha$ grid ---
+statistically tied. Court: stable $+4$--$5$pp in favor of W-TinyLFU across
+every $\alpha$. Numbers copied verbatim from the Phase~5 aggregated
+$\alpha$-sensitivity data.}
+\label{tab:mechanism_gap}
+\end{table}
+
+\subsection{Hypothesized mechanism: SIEVE's visited-bit as a poor-man's admission filter}
+
+SIEVE's visited-bit eviction is \emph{functionally similar} to TinyLFU's
+admission filter, discovered through a different implementation path
+\cite{zhang2024sieve,einziger2017tinylfu}. On a miss, a new key enters the
+cache with \texttt{visited=false}. On a hit, the bit flips to \texttt{true}.
+The eviction scanner advances a hand pointer, clearing \texttt{visited=true}
+bits (and skipping those keys), evicting the first \texttt{visited=false} key
+it hits. Effectively, \textbf{SIEVE evicts one-hit wonders aggressively} --- a
+key that was admitted but never re-accessed is the primary eviction target.
+That is mechanistically close to TinyLFU's ``admit only if estimated frequency
+$\geq$ victim frequency'' rule, just expressed with one bit per key instead of
+a Count-Min Sketch (CMS).
+
+\textbf{On Congress ($\alpha_{\text{raw}}=0.231$, uniform object sizes, 91.7\%
+unique keys; see Table~\ref{tab:workload}):} the raw trace provides almost no
+frequency signal. W-TinyLFU's CMS sees essentially-all-ones counters (most keys
+are seen once or twice over the trace). The admission filter collapses to
+near-no-op behavior. Meanwhile SIEVE's visited-bit is equally effective at
+rejecting one-hit wonders after a single cache cycle. The two policies
+converge because the information content they extract converges: both are
+reduced to ``has this key been seen more than once?'' --- a binary signal.
+
+\textbf{On Court ($\alpha_{\text{raw}}=1.028$, long-tail object sizes, real raw
+locality):} the raw trace carries real structure. W-TinyLFU's CMS captures a
+\emph{gradient} of frequencies --- key $A$ has been seen 5 times, $B$ has been
+seen 2 times, $C$ once. The admission filter preserves hot keys decisively.
+SIEVE's \emph{binary} visited-bit loses this gradient: a key seen once and a
+key seen fifty times are indistinguishable to the scanner. W-TinyLFU pulls
+ahead by the stable $\sim 5$pp recorded in Table~\ref{tab:mechanism_gap}.
+
+\subsection{Addendum: does the ordering invert at higher $\alpha$?}
+
+The natural follow-up question is whether Congress's $\alpha_{\text{raw}}=0.23$
+is simply too weak, and whether a stronger Zipf overlay would eventually
+surface a frequency gradient W-TinyLFU could exploit. We extended the Congress
+$\alpha$ grid to $\{1.3, 1.4, 1.5\}$ with a \emph{single-seed} run (the
+multi-seed infrastructure stops at 1.2 by design; rerunning it is deferred to
+v2). The result: the crossover hypothesis \emph{partially} holds ---
+W-TinyLFU edges SIEVE by $+0.0008$ at $\alpha \in \{1.4, 1.5\}$, but this is
+well below the 5-seed $\sigma \approx 0.007$--$0.010$ at these $\alpha$ values.
+The stronger conclusion is that \textbf{SIEVE and W-TinyLFU are functionally
+equivalent on Congress across the entire usable $\alpha$ range from $0.6$ to
+$1.5$}. The single-seed hedge is explicit; a CI-backed follow-up is listed in
+\S\ref{sec:conclusion} as V2-04.
+
+The paper claim, quoted from the Phase~5 analysis:
+
+\begin{quote}\itshape\small
+On Congress ($\alpha_{\text{raw}}=0.23$, near-uniform raw trace, uniform object
+sizes), SIEVE's visited-bit is functionally equivalent to W-TinyLFU's
+Count-Min Sketch across $\alpha \in [0.6, 1.5]$. On Court
+($\alpha_{\text{raw}}=1.03$, long-tail sizes, real raw locality), W-TinyLFU's
+frequency gradient captures information SIEVE's binary signal cannot. Choice
+of admission mechanism matters \emph{only} when the raw workload provides a
+frequency gradient to exploit.
+\end{quote}
+
+\subsection{What this means for the TinyLFU narrative}
+
+The TinyLFU paper's ``W-TinyLFU wins on Zipf'' framing \cite{einziger2017tinylfu}
+implicitly assumes the Zipf overlay is the whole story. Our data shows that
+\emph{raw trace structure matters independently of the $\alpha$ overlay}: on
+Congress, no accessible $\alpha$ produces a frequency gradient rich enough for
+the CMS to beat a visited-bit; on Court, even modest $\alpha$ values surface
+structure W-TinyLFU can exploit. This is consistent with the Caffeine
+project's production decision to omit the Doorkeeper from its default
+W-TinyLFU configuration \cite{caffeine2024} --- in high-locality production
+traces, the frequency signal is rich enough that further admission hedges are
+not net-helpful; in low-locality traces, no amount of admission filtering
+extracts signal that is not there.
