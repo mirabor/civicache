@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: phase-complete
-stopped_at: Phase 5 complete (6/6 plans, 4/4 SC verified; ANAL-01..04 satisfied; check_anal_acceptance.py green)
-last_updated: "2026-04-21T00:30:00Z"
-last_activity: 2026-04-21 -- Phase 5 complete (cross-workload analysis infrastructure; 5-seed CI bands + Welch's t-test + workload characterization + winner-per-regime tables)
+status: executing
+stopped_at: Phase 6 context gathered (19 decisions across 4 areas — paper narrative, AI-use report framing, figure curation, demo content + hedge)
+last_updated: "2026-04-22T01:35:56.014Z"
+last_activity: 2026-04-22 -- Phase 6 execution started
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 32
+  total_plans: 33
   completed_plans: 26
-  percent: 83
+  percent: 79
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A defensible, well-analyzed comparison of cache eviction policies on real legislative + judicial API workloads, delivered as a submission-ready paper + code + AI-use report + live demo.
-**Current focus:** Phase 6 — Writeup & Demo (next)
+**Current focus:** Phase 6 — Writeup & Demo
 
 ## Current Position
 
-Phase: 5 (Cross-Workload Analysis Infrastructure) — COMPLETE
-Plan: 6 of 6 complete; ready for Phase 6
-Status: Phase 5 complete — 6 plans across 4 waves executed; ANAL-01..04 all satisfied; check_anal_acceptance.py green; code review advisory (2 warnings, 10 info, 0 critical); verifier 4/4 SC passed
-Last activity: 2026-04-21 -- Phase 5 verification passed, phase closed
+Phase: 6 (Writeup & Demo) — EXECUTING
+Plan: 1 of 7
+Status: Executing Phase 6
+Last activity: 2026-04-22 -- Phase 6 execution started
 
 Progress: [████████▎░] 83% (5 of 6 phases, 26 of 32 plans — Phase 5 adds 6 plans)
 
@@ -138,3 +138,5 @@ Resume: `/gsd-plan-phase 6` to create the executable plan set; CONTEXT.md locks 
 - [Phase 05]: Plan 05-06 (ANAL-03/04 tables + acceptance gate): scripts/compare_workloads.py extended 198→472 lines with BASE_POLICIES/OHW_CACHE_FRAC constants + 4 new functions (md_table, build_workload_characterization, build_winner_per_regime, write_table_artifacts); scripts/check_anal_acceptance.py (140 lines) mirrors check_wtlfu_acceptance.py pattern with 4 check_sc* functions; Mixed Sizes regime uses Court single-seed byte_miss_ratio from results/court/mrc.csv (Plan 05-04 aggregates miss_ratio not byte_miss_ratio; multi-seed byte-MRC deferred to v2); Congress Mixed Sizes is N/A per D-01 (uniform sizes); **named regime winners**: Small Cache Congress=W-TinyLFU(0.869)/Court=W-TinyLFU(0.831); High Skew Congress=SIEVE(0.351)/Court=W-TinyLFU(0.386) — SIEVE winning on Congress high-α is a surprise contra Phase 2's W-TinyLFU dominance narrative, likely because mean-across-3-alphas favors SIEVE's visited-bit's scan-resistance at α=1.0 uniform-ish; Mixed Sizes Congress=N/A/Court=W-TinyLFU(0.284 byte_miss_ratio single-seed); OHW Regime Congress=W-TinyLFU(0.712)/Court=W-TinyLFU(0.728); zero ablation contamination (BASE_POLICIES filter applied in regime analysis)
 - [Phase 05]: Code review finding WR-01 (latent coupling): plot_results.py::plot_winner_per_regime_bar::winner_on does NOT filter to BASE_POLICIES while compare_workloads.py::_winner_in_group DOES — today this does not diverge because run_multiseed_sweep.py uses default 6-policy sweep, but if extended to include ablations (s3fifo-5/20, sieve-noprom, wtinylfu-dk) the figure and table would silently diverge. Deferred to Phase 6 or a decimal phase patch.
 - [Phase 05]: Code review finding WR-02 (regime dispatch safety): plot_results.py:819-849 if/elif chain has no else; adding a 5th regime without a matching elif would propagate stale cw/cv/kw/kv from the previous iteration. Deferred.
+
+**Planned Phase:** 6 (Writeup & Demo) — 7 plans — 2026-04-22T01:34:02.611Z
