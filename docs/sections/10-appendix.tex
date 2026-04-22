@@ -1,0 +1,127 @@
+%% Appendix — D-11 reproducibility figures (revision W-3 expansion).
+%% Plan 01 emits \appendix before \input{sections/10-appendix}; do NOT re-declare \appendix here.
+\section{Supplementary Figures}\label{sec:appendix}
+
+This appendix provides the full figure set for reproducibility-minded
+readers. Main-body figures (Figures~\ref{fig:opening}, \ref{fig:workload_viz},
+\ref{fig:alpha_sens}, \ref{fig:shards_overlay}, and the three
+\S\ref{sec:ablations} figures) carry the paper's argument; the figures below
+expand the same data with per-workload detail, duplicate views used for
+different purposes in the main text, and the per-policy delta breakdowns
+that did not fit in the main body. All ten figures regenerate from a clean
+checkout via \texttt{make run-sweep} followed by \texttt{make plots
+WORKLOAD=congress} / \texttt{WORKLOAD=court} / \texttt{WORKLOAD=shards\_large}
+and \texttt{python3 scripts/compare\_workloads.py}.
+
+\subsection{Per-workload MRC, Congress}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../results/congress/figures/mrc.pdf}
+\caption{Congress miss-ratio curves across all six policies and the full
+cache-fraction sweep $\{0.001, 0.005, 0.01, 0.02, 0.05, 0.1\}$. Companion to
+the 2-panel main-body figure (Fig.~\ref{fig:opening}) with the Congress panel
+expanded to show every sampled cache fraction.}
+\label{fig:app_mrc_congress}
+\end{figure}
+
+\subsection{Per-workload MRC, Court}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../results/court/figures/mrc.pdf}
+\caption{Court miss-ratio curves; same axes and policy color scheme as
+Fig.~\ref{fig:app_mrc_congress}. Note the larger inter-policy spread at
+small cache fractions, reflecting Court's richer raw-trace locality
+structure (\S\ref{sec:workload}).}
+\label{fig:app_mrc_court}
+\end{figure}
+
+\subsection{Per-workload byte-MRC, Congress}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../results/congress/figures/byte_mrc.pdf}
+\caption{Congress byte-miss-ratio. Congress's near-uniform object sizes
+make the byte-MRC track the object-MRC closely --- contrast with Court
+(Fig.~\ref{fig:app_byte_mrc_court}) where the 462\,KB outlier inflates
+seed-to-seed variance to $\sigma = 0.21$ (see \S\ref{sec:byte-mrc}).}
+\label{fig:app_byte_mrc_congress}
+\end{figure}
+
+\subsection{Per-workload byte-MRC, Court}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../results/court/figures/byte_mrc.pdf}
+\caption{Court byte-miss-ratio. Note the wide seed-to-seed spread at small
+cache fractions --- the single 462\,KB outlier document dominates byte-miss
+analysis in ways detailed in \S\ref{sec:byte-mrc}.}
+\label{fig:app_byte_mrc_court}
+\end{figure}
+
+\subsection{One-hit-wonder (OHW) breakdown, Congress}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../results/congress/figures/ohw.pdf}
+\caption{Congress one-hit-wonder ratio reaches $0.989$ at
+\texttt{cache\_frac=0.1} --- the raw trace is dominated by keys accessed
+exactly once. This is the empirical motivation for the replay-Zipf overlay
+described in \S\ref{sec:workload}: without it, the raw Congress trace would
+be nearly unanalyzable for policy comparison.}
+\label{fig:app_ohw_congress}
+\end{figure}
+
+\subsection{One-hit-wonder (OHW) breakdown, Court}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../results/court/figures/ohw.pdf}
+\caption{Court one-hit-wonder ratio reaches $1.000$ at
+\texttt{cache\_frac=0.1} --- same replay-Zipf motivation as Congress, but
+Court's raw $\alpha_{\text{raw}} = 1.028$ (vs.\ Congress's $0.231$) means the
+raw trace itself carries exploitable locality before the Zipf overlay is
+applied (\S\ref{sec:mechanism}).}
+\label{fig:app_ohw_court}
+\end{figure}
+
+\subsection{SHARDS error profile (full)}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../results/shards_large/figures/shards_error.pdf}
+\caption{Full SHARDS error profile on the 1M-access trace across all
+sampling rates. Companion to the main-body convergence figure
+(Fig.~\ref{fig:shards_overlay}); shows the full residual distribution rather
+than just the summary MAE / max-abs statistics.}
+\label{fig:app_shards_error}
+\end{figure}
+
+\subsection{SHARDS convergence (duplicated for reproducibility)}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../results/shards_large/figures/shards_convergence.pdf}
+\caption{SHARDS mean-absolute-error and max-absolute error vs.\ sampling
+rate. Also shown in the main body (\S\ref{sec:shards}); reproduced here for
+self-contained appendix use so the reproducibility check in
+Fig.~\ref{fig:app_shards_error} has its reference baseline adjacent.}
+\label{fig:app_shards_conv}
+\end{figure}
+
+\subsection{Per-policy Congress-Court delta}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../results/compare/figures/compare_policy_delta.pdf}
+\caption{Per-policy miss-ratio delta (Court minus Congress) across cache
+fractions. Positive = policy does worse on Court. W-TinyLFU and LRU diverge
+most at small cache fractions --- the admission filter earns its keep in the
+small-cache regime (\S\ref{sec:mechanism}, decision-tree rule 4 in
+\S\ref{sec:conclusion}).}
+\label{fig:app_compare_delta}
+\end{figure}
+
+\subsection{Cross-workload MRC overlay}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../results/compare/figures/compare_mrc_overlay.pdf}
+\caption{All six policies on both workloads in a single overlay --- solid
+lines are Congress, dashed are Court. Collapses the 2-panel main-body figure
+(Fig.~\ref{fig:opening}) into one panel for gestalt comparison; the
+W-TinyLFU$\approx$SIEVE collapse on Congress and the 5pp W-TinyLFU lead on
+Court are both visible in a single glance.}
+\label{fig:app_compare_overlay}
+\end{figure}
