@@ -116,12 +116,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `demo.sh` exists, sources `.env`, sets `DYLD_LIBRARY_PATH`, runs a pre-loaded <10K-access trace through the simulator in <60s total wall-clock, and has been tested end-to-end at least 3 times on the target demo laptop
   4. A screen-recording backup of the full working demo exists and is ready to cut to if the live run hangs
 **Plans**: 7 plans across 3 execution waves
-- [ ] 06-01-PLAN.md — Paper LaTeX skeleton: preamble, title, page-1 figure hook, 10 \input{} section stubs, bibliography, Makefile `paper` target (Wave 1, autonomous, DOC-02)
-- [ ] 06-02-PLAN.md — Demo infrastructure: traces/demo_trace.csv (first 5K rows of congress_trace.csv per D-19), demo.sh with .env + DYLD_LIBRARY_PATH + 6-policy sweep + live miss-ratio table + wall-clock, Makefile `demo` target (Wave 1, autonomous, DOC-04)
-- [ ] 06-03-PLAN.md — DOC-03 AI-use report: decision-log format per D-06, audited PROCESS.md bug count per D-07 (not pinned to literal 9), D-08 honest-but-careful framing, D-09 GSD meta-layer scope, D-10 research-phase weight (Wave 1, autonomous, DOC-03)
-- [ ] 06-04-PLAN.md — Paper body breadth sections: §2 Related Work, §3 Workload Characterization (10-row table), §4 Policy Comparison (per-workload alpha figs), §6 SHARDS Validation (4-rate table + overlay fig), §7 Ablations (all 3 ablation figs per D-14) (Wave 2, depends on 06-01, autonomous, DOC-02)
-- [ ] 06-05-PLAN.md — Paper depth sections: §5 Mechanism deep-dive per D-03 (SIEVE=admission-filter-in-disguise + per-α gap table + α ∈ {1.3..1.5} addendum), §8 Byte-MRC methodology warning (σ=0.21 Court outlier), §9 Conclusion with D-05 practitioner decision tree + winner_per_regime_bar fig + V2-01..V2-06 limitations (Wave 2, depends on 06-01, autonomous, DOC-02)
-- [ ] 06-06-PLAN.md — Final PDF build (`make paper` → docs/DOC-02-final-report.pdf, verify pages >8 and no unresolved refs) + README.md additions (W-TinyLFU row, live-demo section, docs/ in tree, Einziger/Caffeine citations) (Wave 3, depends on 06-01 + 06-04 + 06-05, autonomous, DOC-02)
+- [x] 06-01-PLAN.md — Paper LaTeX skeleton: preamble, title, page-1 figure hook, 10 \input{} section stubs, bibliography, Makefile `paper` target (Wave 1, autonomous, DOC-02)
+- [x] 06-02-PLAN.md — Demo infrastructure: traces/demo_trace.csv (first 5K rows of congress_trace.csv per D-19), demo.sh with .env + DYLD_LIBRARY_PATH + 6-policy sweep + live miss-ratio table + wall-clock, Makefile `demo` target (Wave 1, autonomous, DOC-04)
+- [x] 06-03-PLAN.md — DOC-03 AI-use report: decision-log format per D-06, audited PROCESS.md bug count per D-07 (not pinned to literal 9), D-08 honest-but-careful framing, D-09 GSD meta-layer scope, D-10 research-phase weight (Wave 1, autonomous, DOC-03)
+- [x] 06-04-PLAN.md — Paper body breadth sections: §2 Related Work, §3 Workload Characterization (10-row table), §4 Policy Comparison (per-workload alpha figs), §6 SHARDS Validation (4-rate table + overlay fig), §7 Ablations (all 3 ablation figs per D-14) (Wave 2, depends on 06-01, autonomous, DOC-02)
+- [x] 06-05-PLAN.md — Paper depth sections: §5 Mechanism deep-dive per D-03 (SIEVE=admission-filter-in-disguise + per-α gap table + α ∈ {1.3..1.5} addendum), §8 Byte-MRC methodology warning (σ=0.21 Court outlier), §9 Conclusion with D-05 practitioner decision tree + winner_per_regime_bar fig + V2-01..V2-06 limitations (Wave 2, depends on 06-01, autonomous, DOC-02)
+- [x] 06-06-PLAN.md — Final PDF build (`make paper` → docs/DOC-02-final-report.pdf, verify pages >8 and no unresolved refs) + README.md additions (W-TinyLFU row, live-demo section, docs/ in tree, Einziger/Caffeine citations) (Wave 3, depends on 06-01 + 06-04 + 06-05, autonomous, DOC-02)
 - [ ] 06-07-PLAN.md — D-18 demo rehearsals (3 end-to-end runs on target laptop, tee'd to demo-rehearsal.log) + D-16 screen recording (docs/demo-backup.mov) + .gitignore handling based on file size (Wave 3, depends on 06-02, NON-AUTONOMOUS checkpoint:human-action, DOC-04)
 
 ## Progress
@@ -136,4 +136,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. CourtListener Trace Collection & Replay Sweep | 3/3 | Complete | 2026-04-19 |
 | 4. SHARDS Large-Scale Validation & Ablations | 5/5 | Complete | 2026-04-20 |
 | 5. Cross-Workload Analysis Infrastructure | 6/6 | Complete | 2026-04-21 |
-| 6. Writeup & Demo | 0/7 | Planned | - |
+| 6. Writeup & Demo | 6/7 | In Progress | - |
