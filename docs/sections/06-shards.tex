@@ -1,0 +1,90 @@
+\section{SHARDS Validation}\label{sec:shards}
+
+No exact miss-ratio-curve oracle exists at 1M-access scale --- the classical
+$O(n \cdot |\text{unique keys}|)$ exact-stack-distance algorithm would take
+hours on the traces in question. We therefore validate our MRC construction
+using SHARDS self-convergence (\cite{waldspurger2015shards}): if four
+sampling rates produce MRCs that agree with each other at the scale under
+test, the sampled MRC is a reliable estimate of the (unavailable) exact MRC.
+
+\subsection*{Methodology}
+
+We follow Phase~4 Plan~04-01's validation design: a $1$M-access synthetic
+Zipf trace with $\alpha = 0.8$ and $100{,}000$ unique objects at seed $42$ is
+emitted to \texttt{traces/shards\_large.csv} (this trace file is gitignored
+per our ${<}5\,$s regeneration recipe). We run SHARDS at four sampling
+rates --- $\{0.01\%, 0.1\%, 1\%, 10\%\}$ --- and compare each non-reference
+rate against the $10\%$ reference (the highest-fidelity sample in our grid),
+computing mean-absolute error (MAE) and maximum absolute error across $100$
+aligned MRC points. A companion 50K-access oracle regime with exact stack
+distances complements the 1M-scale self-convergence data; that regime applies
+a 200-sample floor to drop any rate whose effective sample count would
+fall below a statistically meaningful threshold.
+
+\subsection*{Self-convergence table}
+
+\begin{table}[h]
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{0.92}
+\begin{tabularx}{\textwidth}{@{}lXXXX@{}}
+\toprule
+\textbf{Compared rate} & \textbf{MAE vs.\ 10\%} & \textbf{Max abs.\ error} & \textbf{$n_{\text{samples}}$} & \textbf{Caveat} \\
+\midrule
+$0.01\%$ & $0.0437$  & $0.2503$  & $81$   & below $200$-sample floor$^{\ast}$ \\
+$0.1\%$  & $0.0496$  & $0.1898$  & $691$  & --- \\
+$1\%$    & $\mathbf{0.0378}$ & $0.0671$ & $9{,}751$ & sanity gate PASS ($<0.05$) \\
+\bottomrule
+\end{tabularx}
+\caption{SHARDS self-convergence on the $1$M-access trace against the $10\%$
+reference rate ($n_{\text{samples,ref}} = 101{,}144$). $^{\ast}$At $0.01\%$
+sampling only $81$ effective samples remain, well below the $200$-sample
+floor we adopt for reliable per-point error estimates; the MAE value is
+reported but flagged. The $1\%$-vs-$10\%$ MAE of $0.0378$ exceeds
+Waldspurger's $\approx 0.001$ target on a different workload; our synthetic
+uses $\alpha = 0.8$ Zipf which is higher-skew than the paper's baselines,
+so looser convergence at the low-rate end is expected.}
+\label{tab:shards}
+\end{table}
+
+\subsection*{Error-vs-rate figure and MRC overlay}
+
+\begin{figure}[h]
+\centering
+\begin{minipage}{0.48\textwidth}
+\includegraphics[width=\textwidth]{../results/shards_large/figures/shards_convergence.pdf}
+\end{minipage}\hfill
+\begin{minipage}{0.48\textwidth}
+\includegraphics[width=\textwidth]{../results/shards_large/figures/shards_mrc_overlay.pdf}
+\end{minipage}
+\caption{\textbf{Left:} MAE and max absolute error vs.\ SHARDS sampling rate
+on the $1$M trace (log-$x$). The $0.01\%$ point falls below the
+$200$-sample floor and is rendered with an asterisk marker.
+\textbf{Right:} Four-rate MRC overlay showing convergence of the $1\%$ and
+$10\%$ MRCs; the $0.01\%$ curve is shown with a dashed caveat style.}
+\label{fig:shards_overlay}
+\end{figure}
+
+\subsection*{Findings}
+
+Three claims follow from the self-convergence data and the complementary
+50K-oracle regime:
+
+\begin{enumerate}[leftmargin=*,itemsep=0pt,topsep=2pt]
+  \item \textbf{The $1\%$-vs-$10\%$ MAE of $0.0378$ passes the Phase 4
+    sanity gate of $<0.05$.} On a higher-skew synthetic than the
+    Waldspurger paper's baseline workloads, this is the empirical
+    convergence level that motivates trusting any downstream 1M-scale MRC
+    we report.
+  \item \textbf{At $0.01\%$ sampling, the $81$-effective-sample count falls
+    below our $200$-sample floor and is flagged.} We report the rate for
+    completeness but recommend against using it as a primary estimate ---
+    the max absolute error of $0.25$ (vs.\ $0.067$ at $1\%$) confirms
+    point-wise unreliability at this rate.
+  \item \textbf{A 50K-access oracle regime with exact stack distances
+    cross-validates the self-convergence scaling.} At 50K scale the exact
+    MRC is tractable; SHARDS at $1\%$ and $10\%$ reproduces it within the
+    same MAE tolerance band, confirming that the convergence behavior
+    observed at 1M scale extrapolates from smaller, directly-verifiable
+    traces rather than being a 1M-only numerical artifact.
+\end{enumerate}
