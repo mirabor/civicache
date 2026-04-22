@@ -122,7 +122,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 06-04-PLAN.md — Paper body breadth sections: §2 Related Work, §3 Workload Characterization (10-row table), §4 Policy Comparison (per-workload alpha figs), §6 SHARDS Validation (4-rate table + overlay fig), §7 Ablations (all 3 ablation figs per D-14) (Wave 2, depends on 06-01, autonomous, DOC-02)
 - [x] 06-05-PLAN.md — Paper depth sections: §5 Mechanism deep-dive per D-03 (SIEVE=admission-filter-in-disguise + per-α gap table + α ∈ {1.3..1.5} addendum), §8 Byte-MRC methodology warning (σ=0.21 Court outlier), §9 Conclusion with D-05 practitioner decision tree + winner_per_regime_bar fig + V2-01..V2-06 limitations (Wave 2, depends on 06-01, autonomous, DOC-02)
 - [x] 06-06-PLAN.md — Final PDF build (`make paper` → docs/DOC-02-final-report.pdf, verify pages >8 and no unresolved refs) + README.md additions (W-TinyLFU row, live-demo section, docs/ in tree, Einziger/Caffeine citations) (Wave 3, depends on 06-01 + 06-04 + 06-05, autonomous, DOC-02)
-- [ ] 06-07-PLAN.md — D-18 demo rehearsals (3 end-to-end runs on target laptop, tee'd to demo-rehearsal.log) + D-16 screen recording (docs/demo-backup.mov) + .gitignore handling based on file size (Wave 3, depends on 06-02, NON-AUTONOMOUS checkpoint:human-action, DOC-04)
+- [x] 06-07-PLAN.md — D-18 demo rehearsals (3 end-to-end runs on target laptop, tee'd to demo-rehearsal.log) + D-16 screen recording (docs/demo-backup.mov) + .gitignore handling based on file size (Wave 3, depends on 06-02, NON-AUTONOMOUS checkpoint:human-action, DOC-04)
 
 ## Progress
 
@@ -136,4 +136,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. CourtListener Trace Collection & Replay Sweep | 3/3 | Complete | 2026-04-19 |
 | 4. SHARDS Large-Scale Validation & Ablations | 5/5 | Complete | 2026-04-20 |
 | 5. Cross-Workload Analysis Infrastructure | 6/6 | Complete | 2026-04-21 |
-| 6. Writeup & Demo | 6/7 | In Progress | - |
+| 6. Writeup & Demo | 7/7 | Complete | 2026-04-22 |
