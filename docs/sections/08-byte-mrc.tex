@@ -1,0 +1,86 @@
+%% §8 Byte-MRC Methodological Warning — the 462KB outlier story per D-12.
+%% Source: 05-ANALYSIS.md lines 173-215 and 244-283.
+\section{Heavy-Tailed Workloads Require CI Bands on Byte-MRC}\label{sec:byte-mrc}
+
+The $462{,}490$-byte Court document flagged in Table~\ref{tab:workload}
+(\S\ref{sec:workload}, max size vs.\ $1{,}381$-byte median --- a $335\times$
+outlier) dominates byte-miss-ratio analysis in ways that require
+methodological care. Byte-MRC on heavy-tailed workloads behaves
+\emph{qualitatively differently} from object-MRC, and single-seed benchmarks
+silently report this artifact as a policy effect.
+
+\subsection{The data}
+
+Table~\ref{tab:byte_mrc_variance} reports 5-seed mean $\pm \sigma$ at
+\texttt{cache\_frac=0.01} on Court for the three policies that span the
+performance spectrum.
+
+\begin{table}[h]
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{0.92}
+\begin{tabularx}{\textwidth}{@{}lXX@{}}
+\toprule
+\textbf{Policy} & \textbf{Object miss-ratio} & \textbf{Byte miss-ratio} \\
+\midrule
+W-TinyLFU & $0.728 \pm 0.045$ & $\mathbf{0.611 \pm 0.207}$ \\
+SIEVE     & $0.783 \pm 0.045$ & $0.656 \pm 0.205$ \\
+LRU       & $0.847 \pm 0.026$ & $0.755 \pm 0.171$ \\
+\bottomrule
+\end{tabularx}
+\caption{Court at \texttt{cache\_frac=0.01}, 5-seed mean $\pm \sigma$.
+Object-miss $\sigma$ is in the normal $0.03$--$0.05$ range. Byte-miss
+$\sigma$ is $4$--$7\times$ larger --- every policy's byte-miss swings by
+20+ percentage points across seeds, swamping the 5pp inter-policy gap.}
+\label{tab:byte_mrc_variance}
+\end{table}
+
+Object-miss $\sigma$ is in the normal $0.03$--$0.05$ range. Byte-miss $\sigma$
+is $4$--$7\times$ larger. The gap between W-TinyLFU and LRU on byte-miss
+(14.4pp) is smaller than the seed-to-seed $\sigma$ of any single policy --- a
+single-seed run could easily report W-TinyLFU losing to LRU on byte-miss
+purely from seed variance.
+
+\subsection{The mechanism}
+
+Court's max object size is $462{,}490$ bytes --- $335\times$ the $1{,}381$-byte
+median. That single outlier represents:
+\begin{itemize}\setlength{\itemsep}{0pt}
+  \item $0.78\%$ of the working set by bytes ($462$\,KB / $59.6$\,MB)
+  \item $0.007\%$ of the objects (1 of $15{,}018$)
+\end{itemize}
+
+At \texttt{cache\_frac=0.01} on Court (working set $\approx 59.6$\,MB), the
+cache is $\approx 600$\,KB. \textbf{That single outlier is $\approx 77\%$ of
+the cache}. Whether it lives in cache for most of the trace is a near-binary
+signal on byte-miss-ratio. The replay-Zipf seed controls which key gets the
+highest popularity rank: if the seed assigns the 462\,KB outlier rank-1
+(highest popularity), it stays cached for the entire trace and byte-miss is
+low. If the seed assigns it rank-$10{,}000$+, it never enters cache and
+byte-miss is high. No eviction policy can fix this --- it is a
+popularity-assignment artifact of the Zipf-over-raw-trace replay model, not a
+signal about eviction quality.
+
+\subsection{The paper claim}
+
+\begin{quote}\itshape\small
+On a workload with a catastrophic size outlier, byte-level eviction metrics
+are dominated by whether the outlier object's Zipf rank is high enough to
+keep it resident. We report both object miss-ratio (policy-sensitive, low
+variance) and byte miss-ratio (policy-insensitive at this scale, high
+variance), and flag the difference as a feature of heavy-tailed workloads.
+\end{quote}
+
+\textbf{Practitioner takeaway.} Byte-miss benchmarks on traces with long
+tails can be misleading unless CI bands from multi-seed replay are reported.
+The standard practice of quoting a single-seed byte-miss number and comparing
+across policies fails silently here: the $\sigma = 0.207$ around W-TinyLFU's
+$0.611$ mean is large enough that a single seed could report any value in
+$[0.40, 0.82]$ and still be within $1\sigma$ of the truth. Multi-seed CI
+bands (we used 5 seeds with Welch's $t$-test significance) are essential for
+heavy-tailed real-world workloads, not merely a matter of statistical rigor
+--- they are the only way to distinguish a policy effect from a
+popularity-assignment artifact. Size-aware policies (LHD, AdaptSize, or
+W-TinyLFU with size-explicit admission) may reduce this variance on workloads
+with catastrophic size outliers; that extension is listed as V2-02 in
+\S\ref{sec:conclusion}.
