@@ -55,6 +55,7 @@ __pycache__/
 *.fls
 *.synctex.gz
 progress.log
+texput.log
 
 # docs/ — local-only, backed up outside repo
 docs/
