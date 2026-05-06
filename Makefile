@@ -10,7 +10,7 @@ SOURCES := $(wildcard $(SRCDIR)/*.cpp)
 OBJECTS := $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SOURCES))
 TARGET  := cache_sim
 
-.PHONY: all clean run run-sweep plots test shards-large phase-04 ablation-s3fifo ablation-sieve ablation-doorkeeper paper demo
+.PHONY: all clean run run-sweep plots test shards-large phase-04 ablation-s3fifo ablation-sieve ablation-doorkeeper demo
 
 all: $(TARGET)
 
@@ -215,20 +215,9 @@ ablation-doorkeeper: $(TARGET)
 phase-04: shards-large ablation-s3fifo ablation-sieve ablation-doorkeeper
 	@echo "phase-04 complete: shards-large + ablation-s3fifo + ablation-sieve + ablation-doorkeeper"
 
-# ==================== Phase 6 — Paper build (DOC-02) ====================
-# Builds docs/DOC-02-final-report.pdf via latexmk. Assumes all section .tex
-# files under docs/sections/ exist (Plans 04 + 05 provide them, including the
-# D-11 appendix in sections/10-appendix.tex). Runs inside docs/ so
-# \includegraphics paths like ../results/... resolve.
-# .PHONY for paper + demo declared on line 13 (owned by Plan 01 per revision B-1).
-paper:
-	cd docs && latexmk -pdf DOC-02-final-report.tex
-
-# ==================== Phase 6 — Live demo (DOC-04) ====================
+# ==================== Phase 6 — Live demo ====================
 # Invokes the repo-root demo.sh which runs a <60s 6-policy sweep on a
 # pre-generated 5K-request Congress slice (traces/demo_trace.csv).
-# See demo.sh for the full pipeline; see demo-rehearsal.log (Plan 07) for
-# timing evidence.
-# .PHONY for `demo` is declared on line 13 (owned by Plan 01 per revision B-1).
+# .PHONY for `demo` is declared on line 13.
 demo:
 	./demo.sh
