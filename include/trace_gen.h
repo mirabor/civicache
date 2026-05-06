@@ -21,9 +21,14 @@ public:
 // Load a trace CSV (timestamp,key,size) with a one-line header
 std::vector<TraceEntry> load_trace(const std::string& filename);
 
-// Generate a synthetic Zipf-distributed trace with log-normal object sizes
+// Generate a synthetic Zipf-distributed trace with log-normal object sizes.
+// size_mu and size_sigma parameterize the underlying lognormal_distribution
+// (μ and σ of the underlying normal distribution). Defaults preserve the
+// historical (8.3, 1.5) parameterization used in Phase 1–6.
 std::vector<TraceEntry> generate_zipf_trace(uint64_t num_requests, uint64_t num_objects,
-                                             double alpha, uint64_t seed = 42);
+                                             double alpha, uint64_t seed = 42,
+                                             double size_mu = 8.3,
+                                             double size_sigma = 1.5);
 
 // Replay real keys/sizes from a trace with Zipf-distributed popularity.
 // Extracts unique (key, size) pairs from the input trace, ranks them

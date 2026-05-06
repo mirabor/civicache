@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <deque>
+#include <random>
 
 struct TraceEntry {
     uint64_t timestamp;
@@ -458,7 +459,467 @@ public:
     void reset() override { queue_.clear(); map_.clear(); current_size_ = 0; hand_valid_ = false; stats = {}; }
 };
 
+// ==================== GDSF (Greedy Dual-Size-Frequency) ====================
+// Cherkasova, "Improving WWW Proxies Performance with GDSF Caching Policy",
+// HP Labs Tech Report, 1998. Per-key priority H = freq * cost(size) / size + L
+// where L is a monotone-non-decreasing clock variable advanced on each
+// eviction to the evicted item's H. We provide two cost models, selected
+// at construction:
+//   - kUnit     : cost(size) = 1 (the v3 paper's GDSF; size-only-aware)
+//   - kEmpirical: cost(size) = 530 + 0.00254 * size_bytes (ms), the linear
+//                 fit from scripts/fit_cost_vs_size.py against our two
+//                 collected traces. Captures the realistic deployment shape
+//                 where origin fetch latency grows with object size.
+//
+// Eviction is min-heap-based (O(log n) per eviction). The lazy-deletion
+// pattern handles the fact that hits modify an entry's H without removing
+// it from the heap; the heap may contain stale entries with obsolete H,
+// which we filter at pop-time by comparing the popped H against the entry's
+// current H in map_ (mismatch = stale = discard and pop again).
+enum class GDSFCost { kUnit, kEmpirical };
+
+class GDSFCache : public CachePolicy {
+    uint64_t capacity_;
+    uint64_t current_size_ = 0;
+    double L_ = 0.0;
+    GDSFCost cost_mode_;
+
+    // Empirical fit: cost_ms = COST_INTERCEPT + COST_SLOPE_PER_BYTE * size
+    static constexpr double COST_INTERCEPT_MS = 530.0;
+    static constexpr double COST_SLOPE_MS_PER_BYTE = 0.0025366;
+
+    struct Entry {
+        uint64_t size;
+        uint64_t freq;
+        double H;
+    };
+    std::unordered_map<std::string, Entry> map_;
+
+    // Min-heap of (H, key). May contain stale entries with H != map_[key].H;
+    // pop_min() lazily discards stale entries.
+    struct HeapNode {
+        double H;
+        std::string key;
+        bool operator>(const HeapNode& o) const { return H > o.H; }
+    };
+    std::vector<HeapNode> heap_;
+
+    double cost_for_size(uint64_t size) const {
+        if (cost_mode_ == GDSFCost::kUnit) return 1.0;
+        return COST_INTERCEPT_MS + COST_SLOPE_MS_PER_BYTE * (double)size;
+    }
+
+    void heap_push(double H, const std::string& key) {
+        heap_.push_back({H, key});
+        std::push_heap(heap_.begin(), heap_.end(), std::greater<HeapNode>{});
+    }
+
+    // Pop until top is non-stale, then return the popped (H, key).
+    // Returns true if found a valid victim, false if heap empty.
+    bool heap_pop_valid(double& out_H, std::string& out_key) {
+        while (!heap_.empty()) {
+            std::pop_heap(heap_.begin(), heap_.end(), std::greater<HeapNode>{});
+            HeapNode top = heap_.back();
+            heap_.pop_back();
+            auto it = map_.find(top.key);
+            if (it == map_.end()) continue;             // already evicted
+            if (it->second.H != top.H) continue;        // stale H
+            out_H = top.H; out_key = top.key;
+            return true;
+        }
+        return false;
+    }
+
+public:
+    GDSFCache(uint64_t capacity, GDSFCost cost_mode = GDSFCost::kUnit)
+        : capacity_(capacity), cost_mode_(cost_mode) {}
+
+    bool access(const std::string& key, uint64_t size) override {
+        auto it = map_.find(key);
+        if (it != map_.end()) {
+            current_size_ = current_size_ - it->second.size + size;
+            it->second.size = size;
+            it->second.freq += 1;
+            double new_H = L_ + (double)it->second.freq * cost_for_size(size) / (double)size;
+            it->second.H = new_H;
+            heap_push(new_H, key);   // old heap entry becomes stale; popped+discarded later
+            record(true, size);
+            return true;
+        }
+        // Miss: evict until space
+        while (current_size_ + size > capacity_ && !map_.empty()) {
+            double victim_H;
+            std::string victim_key;
+            if (!heap_pop_valid(victim_H, victim_key)) break;
+            L_ = victim_H;
+            auto v = map_.find(victim_key);
+            if (v != map_.end()) {
+                current_size_ -= v->second.size;
+                map_.erase(v);
+            }
+        }
+        double H_new = L_ + (double)1 * cost_for_size(size) / (double)size;
+        Entry e{size, 1, H_new};
+        map_[key] = e;
+        heap_push(H_new, key);
+        current_size_ += size;
+        record(false, size);
+        return false;
+    }
+
+    std::string name() const override {
+        return cost_mode_ == GDSFCost::kEmpirical ? "GDSF-Cost" : "GDSF";
+    }
+    void reset() override {
+        map_.clear(); heap_.clear();
+        current_size_ = 0; L_ = 0.0; stats = {};
+    }
+};
+
+// ==================== LHD (Least Hit Density) ====================
+// Beckmann, Chen, Cidon. "LHD: Improving Cache Hit Rate by Maximizing
+// Hit Density." NSDI 2018. The modern size-aware-AND-frequency-aware
+// policy that v4's conclusion flagged as the most consequential missing
+// baseline. Core idea: each cached item gets a hit-density score
+// HD(item) = P(hit before eviction) / E[remaining bytes-time], evict
+// the item with lowest HD on miss.
+//
+// Faithful sample-based implementation:
+//   - Per-item: size, frequency, last-access age (in units of trace
+//     accesses since insert).
+//   - Age classes: 16 log-spaced buckets covering ages 1, 2, 4, ..., 32K.
+//   - Per-class running statistics (EWMA-decayed): hits and evictions.
+//   - hit_density(class) = hits / (hits + evictions). This is a simple
+//     approximation; the full LHD paper uses a more elaborate residual
+//     reuse-distance model but this captures the essential signal.
+//   - Per-item HD = hit_density(class(age)) / size(item).
+//   - On eviction: sample K=64 random items, evict the min-HD one.
+//     Sampling avoids the O(n) per-eviction cost of a full scan; the
+//     paper notes K=64 is sufficient for cache sizes up to ~10^6.
+//
+// The cost of LHD is implementation complexity (~150 lines vs GDSF's 50)
+// and bookkeeping per access. We measure throughput in the focal sweep
+// to verify it stays competitive with W-TinyLFU.
+class LHDCache : public CachePolicy {
+    uint64_t capacity_;
+    uint64_t current_size_ = 0;
+    uint64_t global_age_ = 0;        // counts every access; per-item age = global_age - last_access_age
+    std::mt19937_64 rng_;            // proper RNG carried as state, not reseeded per-access
+    static constexpr int N_CLASSES = 16;
+    static constexpr int SAMPLE_K = 64;
+    static constexpr double EWMA_DECAY = 0.9999;  // per-access decay; ~10K-access half-life
+
+    struct Entry {
+        uint64_t size;
+        uint64_t freq;
+        uint64_t last_access_global_age;
+    };
+    std::unordered_map<std::string, Entry> map_;
+    std::vector<std::string> keys_;          // for sampling
+    std::unordered_map<std::string, size_t> key_idx_;  // key -> position in keys_
+
+    // Per-class running stats: hits, evictions, total bytes
+    double class_hits_[N_CLASSES] = {};
+    double class_evicts_[N_CLASSES] = {};
+
+    // Class index from age (in units of accesses)
+    int class_for_age(uint64_t age) const {
+        if (age == 0) return 0;
+        // log-spaced: class i covers ages [2^i, 2^(i+1))
+        int b = 0;
+        uint64_t a = age;
+        while (a > 1 && b < N_CLASSES - 1) { a >>= 1; ++b; }
+        return b;
+    }
+
+    double hit_density(int cls) const {
+        double h = class_hits_[cls];
+        double e = class_evicts_[cls];
+        // Smoothed: avoid divide-by-zero, prior = 0.5
+        return (h + 0.5) / (h + e + 1.0);
+    }
+
+    void decay_classes() {
+        for (int i = 0; i < N_CLASSES; ++i) {
+            class_hits_[i]   *= EWMA_DECAY;
+            class_evicts_[i] *= EWMA_DECAY;
+        }
+    }
+
+    void remove_from_keys_vec(const std::string& key) {
+        auto it = key_idx_.find(key);
+        if (it == key_idx_.end()) return;
+        size_t i = it->second;
+        size_t last = keys_.size() - 1;
+        if (i != last) {
+            keys_[i] = keys_[last];
+            key_idx_[keys_[i]] = i;
+        }
+        keys_.pop_back();
+        key_idx_.erase(it);
+    }
+
+public:
+    LHDCache(uint64_t capacity, uint64_t seed = 12345)
+        : capacity_(capacity), rng_(seed) {}
+
+    bool access(const std::string& key, uint64_t size) override {
+        ++global_age_;
+        decay_classes();
+
+        auto it = map_.find(key);
+        if (it != map_.end()) {
+            uint64_t age_at_hit = global_age_ - it->second.last_access_global_age;
+            int cls = class_for_age(age_at_hit);
+            class_hits_[cls] += 1.0;
+
+            current_size_ = current_size_ - it->second.size + size;
+            it->second.size = size;
+            it->second.freq += 1;
+            it->second.last_access_global_age = global_age_;
+            record(true, size);
+            return true;
+        }
+        // Miss: evict until space, sampling K candidates and picking min HD
+        while (current_size_ + size > capacity_ && !map_.empty()) {
+            // sample min(K, |cache|) random items, score by HD/size, pick min
+            size_t n = keys_.size();
+            size_t k = std::min((size_t)SAMPLE_K, n);
+            std::string victim_key;
+            double victim_score = 1e30;
+            for (size_t i = 0; i < k; ++i) {
+                size_t idx = std::uniform_int_distribution<size_t>(0, n-1)(rng_);
+                const std::string& kk = keys_[idx];
+                auto v = map_.find(kk);
+                if (v == map_.end()) continue;
+                uint64_t age = global_age_ - v->second.last_access_global_age;
+                int cls = class_for_age(age);
+                double hd = hit_density(cls);
+                double score = hd / (double)v->second.size;  // higher = keep, lower = evict
+                if (score < victim_score) { victim_score = score; victim_key = kk; }
+            }
+            if (victim_key.empty()) break;
+            auto v = map_.find(victim_key);
+            uint64_t age = global_age_ - v->second.last_access_global_age;
+            int cls = class_for_age(age);
+            class_evicts_[cls] += 1.0;
+            current_size_ -= v->second.size;
+            map_.erase(v);
+            remove_from_keys_vec(victim_key);
+        }
+        Entry e{size, 1, global_age_};
+        map_[key] = e;
+        key_idx_[key] = keys_.size();
+        keys_.push_back(key);
+        current_size_ += size;
+        record(false, size);
+        return false;
+    }
+
+    std::string name() const override { return "LHD"; }
+    void reset() override {
+        map_.clear(); keys_.clear(); key_idx_.clear();
+        current_size_ = 0; global_age_ = 0;
+        for (int i = 0; i < N_CLASSES; ++i) { class_hits_[i] = 0; class_evicts_[i] = 0; }
+        stats = {};
+    }
+};
+
 // ==================== W-TinyLFU ====================
 // Subordinate header; defined after CachePolicy so WTinyLFUCache : public CachePolicy
 // has the base class in scope. See .planning/phases/02-w-tinylfu-core/02-CONTEXT.md L-11.
+
+// ==================== LHDFull (residual reuse distance) ====================
+// Faithful implementation of Beckmann/Chen/Cidon NSDI 2018, including the
+// residual-reuse-distance model that LHDCache (lhd-lite, above) omits.
+//
+// Core formula (Eq. 3 of NSDI'18):
+//
+//   HD(class, age) = P(hit | survived to age, class) /
+//                    E[remaining lifetime | survived to age, class]
+//
+// where a "lifetime event" is either a hit (reuse) or an eviction.
+// Items with high HD should be retained; items with low HD evicted.
+//
+// Per class c, we maintain two histograms over discretized ages:
+//
+//   p_reuse[c][b]  = recent freq of HITS at age in bin b
+//   p_evict[c][b]  = recent freq of EVICTIONS at age in bin b
+//
+// (EWMA-decayed every access, decay 0.9999.) On a hit at age a, we
+// increment p_reuse[c][bin(a)] and reset the item's age to 0; on eviction
+// at age a, we increment p_evict[c][bin(a)] and remove the item.
+//
+// On miss-evict, we sample K=64 random cached items, compute HD for each,
+// and evict the minimum.
+//
+// Class assignment: 2-D (age_bin, freq_bin). Per Section 4.1 of NSDI'18,
+// LHD's class is (app_id, age_bin, freq_bin); we don't have app_id from
+// our traces, so we use (age_bin, freq_bin) — the canonical reduction
+// when app_tags aren't available. Frequency buckets: {1, 2-4, 5-15, 16+}.
+class LHDFullCache : public CachePolicy {
+    uint64_t capacity_;
+    uint64_t current_size_ = 0;
+    uint64_t global_age_ = 0;
+    std::mt19937_64 rng_;
+    static constexpr int N_AGE_BINS = 16;
+    static constexpr int N_FREQ_BINS = 4;     // {1, 2-4, 5-15, 16+}
+    static constexpr int SAMPLE_K = 64;
+    static constexpr double EWMA_DECAY = 0.9999;
+    static constexpr double SMOOTHING = 0.5;
+
+    static int freq_bin(uint64_t f) {
+        if (f <= 1) return 0;
+        if (f <= 4) return 1;
+        if (f <= 15) return 2;
+        return 3;
+    }
+
+    struct Entry {
+        uint64_t size;
+        uint64_t freq;
+        uint64_t last_access_global_age;
+    };
+    std::unordered_map<std::string, Entry> map_;
+    std::vector<std::string> keys_;
+    std::unordered_map<std::string, size_t> key_idx_;
+
+    // 2-D histograms: [freq_bin][age_bin]
+    double p_reuse_[N_FREQ_BINS][N_AGE_BINS] = {};
+    double p_evict_[N_FREQ_BINS][N_AGE_BINS] = {};
+
+    int bin_for_age(uint64_t age) const {
+        if (age == 0) return 0;
+        int b = 0;
+        uint64_t a = age;
+        while (a > 1 && b < N_AGE_BINS - 1) { a >>= 1; ++b; }
+        return b;
+    }
+
+    // Discrete representative-age (mid-of-bin): age 2^b for bin b.
+    double bin_age(int b) const {
+        return std::ldexp(1.0, b);  // 2^b
+    }
+
+    // HD = P(reuse | survived to age) / E[remaining lifetime | survived]
+    // where:
+    //   P(reuse) = sum_{b' >= bin(age)} p_reuse[b'] / sum_{b' >= bin(age)} (p_reuse[b'] + p_evict[b'])
+    //   E[remaining_lifetime] = (sum_{b' >= bin(age)} bin_age(b') * (p_reuse[b'] + p_evict[b']) /
+    //                            sum_{b' >= bin(age)} (p_reuse[b'] + p_evict[b'])) - bin_age(bin(age))
+    //
+    // 2-D HD: classes are (freq_bin, age_bin). To avoid divide-by-zero and
+    // numerical noise on cold classes, we add a Laplace-style smoothing prior.
+    double compute_hd(uint64_t age, uint64_t freq) const {
+        int fb = freq_bin(freq);
+        int ab = bin_for_age(age);
+        double total_above = 0.0, reuse_above = 0.0, lifetime_above = 0.0;
+        for (int b2 = ab; b2 < N_AGE_BINS; ++b2) {
+            double r = p_reuse_[fb][b2] + SMOOTHING / (N_AGE_BINS * N_FREQ_BINS);
+            double e = p_evict_[fb][b2] + SMOOTHING / (N_AGE_BINS * N_FREQ_BINS);
+            double t = r + e;
+            total_above += t;
+            reuse_above += r;
+            lifetime_above += bin_age(b2) * t;
+        }
+        if (total_above < 1e-12) return 1e30;
+        double p_reuse = reuse_above / total_above;
+        double e_lifetime = (lifetime_above / total_above) - bin_age(ab);
+        if (e_lifetime <= 0) e_lifetime = bin_age(ab);
+        return p_reuse / e_lifetime;
+    }
+
+    void decay() {
+        for (int f = 0; f < N_FREQ_BINS; ++f)
+            for (int i = 0; i < N_AGE_BINS; ++i) {
+                p_reuse_[f][i] *= EWMA_DECAY;
+                p_evict_[f][i] *= EWMA_DECAY;
+            }
+    }
+
+    void remove_from_keys(const std::string& key) {
+        auto it = key_idx_.find(key);
+        if (it == key_idx_.end()) return;
+        size_t i = it->second;
+        size_t last = keys_.size() - 1;
+        if (i != last) {
+            keys_[i] = keys_[last];
+            key_idx_[keys_[i]] = i;
+        }
+        keys_.pop_back();
+        key_idx_.erase(it);
+    }
+
+public:
+    LHDFullCache(uint64_t capacity, uint64_t seed = 12345)
+        : capacity_(capacity), rng_(seed) {}
+
+    bool access(const std::string& key, uint64_t size) override {
+        ++global_age_;
+        decay();
+
+        auto it = map_.find(key);
+        if (it != map_.end()) {
+            uint64_t age_at_hit = global_age_ - it->second.last_access_global_age;
+            int ab = bin_for_age(age_at_hit);
+            int fb = freq_bin(it->second.freq);  // freq BEFORE this hit (the class the item was in)
+            p_reuse_[fb][ab] += 1.0;
+
+            current_size_ = current_size_ - it->second.size + size;
+            it->second.size = size;
+            it->second.freq += 1;
+            it->second.last_access_global_age = global_age_;
+            record(true, size);
+            return true;
+        }
+        // Miss: evict until space, sample K candidates, evict min HD/size
+        uint64_t victim_freq = 0;
+        while (current_size_ + size > capacity_ && !map_.empty()) {
+            size_t n = keys_.size();
+            size_t k = std::min((size_t)SAMPLE_K, n);
+            std::string victim_key;
+            double victim_score = 1e30;
+            uint64_t victim_age = 0;
+            for (size_t i = 0; i < k; ++i) {
+                size_t idx = std::uniform_int_distribution<size_t>(0, n-1)(rng_);
+                const std::string& kk = keys_[idx];
+                auto v = map_.find(kk);
+                if (v == map_.end()) continue;
+                uint64_t age = global_age_ - v->second.last_access_global_age;
+                double hd = compute_hd(age, v->second.freq);
+                double score = hd / (double)v->second.size;
+                if (score < victim_score) {
+                    victim_score = score;
+                    victim_key = kk;
+                    victim_age = age;
+                    victim_freq = v->second.freq;
+                }
+            }
+            if (victim_key.empty()) break;
+            int ab = bin_for_age(victim_age);
+            int fb = freq_bin(victim_freq);
+            p_evict_[fb][ab] += 1.0;
+            auto v = map_.find(victim_key);
+            current_size_ -= v->second.size;
+            map_.erase(v);
+            remove_from_keys(victim_key);
+        }
+        Entry e{size, 1, global_age_};
+        map_[key] = e;
+        key_idx_[key] = keys_.size();
+        keys_.push_back(key);
+        current_size_ += size;
+        record(false, size);
+        return false;
+    }
+
+    std::string name() const override { return "LHD-Full"; }
+    void reset() override {
+        map_.clear(); keys_.clear(); key_idx_.clear();
+        current_size_ = 0; global_age_ = 0;
+        for (int f = 0; f < N_FREQ_BINS; ++f)
+            for (int i = 0; i < N_AGE_BINS; ++i) { p_reuse_[f][i] = 0; p_evict_[f][i] = 0; }
+        stats = {};
+    }
+};
+
 #include "wtinylfu.h"

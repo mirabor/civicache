@@ -50,11 +50,15 @@ std::vector<TraceEntry> load_trace(const std::string& filename) {
 }
 
 std::vector<TraceEntry> generate_zipf_trace(uint64_t num_requests, uint64_t num_objects,
-                                             double alpha, uint64_t seed) {
+                                             double alpha, uint64_t seed,
+                                             double size_mu, double size_sigma) {
     ZipfGenerator zipf(num_objects, alpha, seed);
     std::mt19937_64 size_rng(seed + 1);
-    // Log-normal size distribution (median ~4KB)
-    std::lognormal_distribution<double> size_dist(8.3, 1.5);
+    // Log-normal size distribution. Default (8.3, 1.5) gives median ~4KB and
+    // a max/median ratio comparable to Court (~300×). Phase-7 D-22: size_mu /
+    // size_sigma threaded through CLI for the (α × σ_size) 2D sweep that
+    // produces the continuous decision-map heatmap (§11).
+    std::lognormal_distribution<double> size_dist(size_mu, size_sigma);
 
     // Pre-generate one size per object so repeated accesses see the same size
     std::vector<uint64_t> obj_sizes(num_objects);

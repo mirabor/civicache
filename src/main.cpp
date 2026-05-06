@@ -26,6 +26,8 @@ static void print_usage(const char* prog) {
               << "  --num-requests <n>     Number of synthetic requests (default: 500000)\n"
               << "  --num-objects <n>      Number of unique objects for synthetic trace (default: 50000)\n"
               << "  --seed <n>             RNG seed for Zipf trace + replay (default: 42)\n"
+              << "  --size-mu <m>          Synthetic log-normal size mu (default: 8.3, median ~4KB)\n"
+              << "  --size-sigma <s>       Synthetic log-normal size sigma (default: 1.5; raise for heavier tail)\n"
               << "  --alpha <a>            Zipf alpha for single run (default: 0.8)\n"
               << "  --alpha-sweep          Run alpha sensitivity sweep\n"
               << "  --shards               Run SHARDS MRC construction\n"
@@ -63,7 +65,7 @@ static uint64_t working_set_bytes(const std::vector<TraceEntry>& trace) {
 // Create a cache policy by name. n_objects_hint is consumed only by the
 // wtinylfu branch (sizes its embedded CountMinSketch width per D-02);
 // other policies ignore it.
-static std::unique_ptr<CachePolicy> make_policy(const std::string& name, uint64_t capacity, uint64_t n_objects_hint) {
+static std::unique_ptr<CachePolicy> make_policy(const std::string& name, uint64_t capacity, uint64_t n_objects_hint, uint64_t seed = 42) {
     (void)n_objects_hint;  // only W-TinyLFU consumes this
     if (name == "lru")      return std::make_unique<LRUCache>(capacity);
     if (name == "fifo")     return std::make_unique<FIFOCache>(capacity);
@@ -85,6 +87,10 @@ static std::unique_ptr<CachePolicy> make_policy(const std::string& name, uint64_
     // Legacy "sieve" branch above is unchanged — it uses the default-arg
     // ctor and preserves the "SIEVE" label.
     if (name == "sieve-noprom") return std::make_unique<SIEVECache>(capacity, /*promote_on_hit=*/false);
+    if (name == "gdsf")      return std::make_unique<GDSFCache>(capacity, GDSFCost::kUnit);
+    if (name == "gdsf-cost") return std::make_unique<GDSFCache>(capacity, GDSFCost::kEmpirical);
+    if (name == "lhd")       return std::make_unique<LHDCache>(capacity, seed);
+    if (name == "lhd-full")  return std::make_unique<LHDFullCache>(capacity, seed);
     if (name == "wtinylfu") return std::make_unique<WTinyLFUCache>(capacity, n_objects_hint);
     // Phase 4 Axis B (D-08 / DOOR-02): W-TinyLFU + Doorkeeper variant.
     // Passes use_doorkeeper=true to the 3-arg ctor so access() applies the
@@ -117,6 +123,8 @@ int main(int argc, char* argv[]) {
     uint64_t trace_limit = 0;                                // D-03: 0 means "no limit"
     std::string emit_trace_path;                             // D-15: when non-empty, generate + write + exit
     double alpha = 0.8;
+    double size_mu = 8.3;        // Phase 7 D-22: synthetic log-normal mu (median ~ exp(8.3) ≈ 4 KB)
+    double size_sigma = 1.5;     // Phase 7 D-22: synthetic log-normal sigma (raise for heavier tail)
     bool alpha_sweep = false;
     bool run_shards = false;
     bool shards_exact = false;
@@ -141,6 +149,10 @@ int main(int argc, char* argv[]) {
             seed = std::stoull(argv[++i]);
         } else if (std::strcmp(argv[i], "--alpha") == 0 && i + 1 < argc) {
             alpha = std::stod(argv[++i]);
+        } else if (std::strcmp(argv[i], "--size-mu") == 0 && i + 1 < argc) {
+            size_mu = std::stod(argv[++i]);
+        } else if (std::strcmp(argv[i], "--size-sigma") == 0 && i + 1 < argc) {
+            size_sigma = std::stod(argv[++i]);
         } else if (std::strcmp(argv[i], "--alpha-sweep") == 0) {
             alpha_sweep = true;
         } else if (std::strcmp(argv[i], "--shards") == 0) {
@@ -179,7 +191,7 @@ int main(int argc, char* argv[]) {
         std::cout << "  num_requests=" << num_requests
                   << " num_objects=" << num_objects
                   << " alpha=" << alpha << " seed=42\n";
-        auto t = generate_zipf_trace(num_requests, num_objects, alpha, 42);
+        auto t = generate_zipf_trace(num_requests, num_objects, alpha, 42, size_mu, size_sigma);
         std::ofstream out(emit_trace_path);
         if (!out) { std::cerr << "Cannot open " << emit_trace_path << " for write\n"; return 1; }
         out << "timestamp,key,size\n";
@@ -212,7 +224,7 @@ int main(int argc, char* argv[]) {
     } else {
         std::cout << "Generating synthetic Zipf trace (alpha=" << alpha
                   << ", n=" << num_requests << ", objects=" << num_objects << ")\n";
-        trace = generate_zipf_trace(num_requests, num_objects, alpha, seed);
+        trace = generate_zipf_trace(num_requests, num_objects, alpha, seed, size_mu, size_sigma);
     }
 
     // D-03: --limit truncates the trace BEFORE any processing. Used by the
@@ -276,7 +288,7 @@ int main(int argc, char* argv[]) {
             std::cout << std::setw(10) << std::setprecision(1) << (frac * 100) << "%";
 
             for (auto& pn : policy_names) {
-                auto p = make_policy(pn, cache_bytes, n_obj_hint);
+                auto p = make_policy(pn, cache_bytes, n_obj_hint, seed);
                 if (!p) {
                     std::cerr << "Unknown policy: " << pn << "\n";
                     continue;
@@ -337,7 +349,7 @@ int main(int argc, char* argv[]) {
         for (double a : alphas) {
             auto sweep_trace = !prepared_objects.empty()
                 ? generate_replay_trace(prepared_objects, num_requests, a, seed)
-                : generate_zipf_trace(num_requests, num_objects, a, seed);
+                : generate_zipf_trace(num_requests, num_objects, a, seed, size_mu, size_sigma);
             uint64_t wb = working_set_bytes(sweep_trace);
             uint64_t cache_bytes = wb / 100;
             // D-02: sweep traces resample the SAME prepared_objects key set,
@@ -349,7 +361,7 @@ int main(int argc, char* argv[]) {
 
             std::cout << std::setw(6) << std::setprecision(1) << a;
             for (auto& pn : policy_names) {
-                auto p = make_policy(pn, cache_bytes, n_obj_hint);
+                auto p = make_policy(pn, cache_bytes, n_obj_hint, seed);
                 auto t_start = std::chrono::steady_clock::now();
                 run_simulation(sweep_trace, *p);
                 auto t_end = std::chrono::steady_clock::now();
