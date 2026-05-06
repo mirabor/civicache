@@ -129,27 +129,8 @@ Plots are saved to `results/figures/` as PDFs.
 │   ├── collect_court_trace.py # CourtListener REST v4 collector
 │   ├── compare_workloads.py  # Multi-seed aggregation + Welch's t-test
 │   └── plot_results.py       # matplotlib figure generation
-├── docs/                     # Final paper + AI-use report
-│   ├── DOC-02-final-report.tex   # Paper source (LaTeX)
-│   ├── DOC-02-final-report.pdf   # Rendered paper (via `make paper`)
-│   ├── DOC-03-ai-use-report.md   # AI-use decision log
-│   └── sections/                 # Paper body sections (input into main .tex)
 ├── demo.sh                  # Live 60s 6-policy sweep demo
 ├── Makefile
 └── README.md
 ```
 
-## Reports & Deliverables
-
-- **DOC-02** — Final paper: `docs/DOC-02-final-report.pdf` (built via `make paper`).
-- **DOC-03** — AI-use decision log: `docs/DOC-03-ai-use-report.md`.
-- **DOC-04** — Live 60s demo: `./demo.sh` or `make demo`.
-
-## References
-
-- Waldspurger, C. et al. "Efficient MRC Construction with SHARDS." USENIX FAST 2015.
-- Yang, J. et al. "FIFO Queues Are All You Need for Cache Eviction." SOSP 2023.
-- Zhang, Y. et al. "SIEVE Is Simpler Than LRU." NSDI 2024.
-- Clauset, A. et al. "Power-Law Distributions in Empirical Data." SIAM Review, 2009.
-- Einziger, G. et al. "TinyLFU: A Highly Efficient Cache Admission Policy." ACM Transactions on Storage, 2017.
-- Manes, B. "Caffeine v3.1.8: High-performance caching library for Java." 2024.
